@@ -1,118 +1,72 @@
 # MCP Proxy Wiring Runbook
 
-Goal: make Claude agents in Paperclip automatically have access to plugin tools
-(Dinero, Email) via the MCP proxy at /paperclip/mcp-proxy/index.js
+**Current approach (as of 2026-04-20):** fully automated via `wire-mcp-to-customer.sh`.
+The older manual steps below this section are kept for reference only.
 
-## Status before this runbook
-- /paperclip/mcp-proxy/index.js copied to container ✅
-- npm install done inside container ✅  
-- Proxy verified to load 13 tools when run standalone ✅
-- Missing: ~/.claude/settings.json inside container pointing to proxy
+---
 
-## Step 1: Write MCP config to /paperclip (persists in volume)
+## One-command wiring
 
 ```bash
-ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker exec paperclip-deploy-paperclip-1 bash -c 'cat > /paperclip/mcp-proxy-config.json << JSONEOF
-{\"mcpServers\":{\"paperclip-plugins\":{\"type\":\"stdio\",\"command\":\"/usr/local/bin/node\",\"args\":[\"/paperclip/mcp-proxy/index.js\"],\"env\":{\"PC_HOST\":\"http://100.66.0.88:3100\",\"PC_EMAIL\":\"gustav@gearloose.dk\",\"PC_COMPANY_ID\":\"df675b10-abcb-43e1-9a0c-69a88ccf705c\"}}}}
-JSONEOF
-echo done'"
+PC_PASSWORD=<pw> ./scripts/wire-mcp-to-customer.sh <customer-slug>
+# e.g.
+PC_PASSWORD=$PC_PASSWORD ./scripts/wire-mcp-to-customer.sh gearloose
 ```
 
-NOTE: Password is NOT in this file — use CLAUDE_SETTINGS env approach OR patch execute.js
-to inject --mcp-config (see Step 3). The proxy needs the password to auth.
+What the script does:
+1. Builds the MCP proxy from `packages/mcp-plugin-proxy/`
+2. Copies `index.js` + `package.json` into the container at `/paperclip/mcp-proxy/`
+3. Runs `npm install` inside the container
+4. Writes `/paperclip/mcp-proxy-config.json` (persists in Docker volume) via `ssh | docker exec -i tee`
+5. Authenticates with Paperclip and finds the customer's agent (prefers name containing "cfo" or "assistant")
+6. PATCHes the agent with `adapterConfig.extraArgs: ["--settings", "/paperclip/mcp-proxy-config.json"]`
 
-Better: write it with password via the NUC's env (secret kept on NUC host):
+The `--settings` flag is Claude Code's mechanism for loading an MCP server config. Paperclip passes `extraArgs` to the `claude` CLI when spawning agent conversations.
+
+**The config persists in `/paperclip/` (Docker volume) and the agent patch persists in the DB — both survive container restarts.**
+
+---
+
+## Verifying after wiring
 
 ```bash
-ssh nuc 'DOCKER_HOST=unix:///var/run/docker.sock docker exec paperclip-deploy-paperclip-1 bash -c "
-mkdir -p /paperclip/mcp-proxy
-node -e \"
-const cfg = {
-  mcpServers: {
-    'paperclip-plugins': {
-      type: 'stdio',
-      command: '/usr/local/bin/node',
-      args: ['/paperclip/mcp-proxy/index.js'],
-      env: {
-        PC_HOST: 'http://100.66.0.88:3100',
-        PC_EMAIL: 'gustav@gearloose.dk',
-        PC_PASSWORD: process.env.PC_PW,
-        PC_COMPANY_ID: 'df675b10-abcb-43e1-9a0c-69a88ccf705c'
-      }
-    }
-  }
-};
-require('fs').writeFileSync('/paperclip/mcp-proxy-config.json', JSON.stringify(cfg, null, 2));
-console.log('written');
-\" 
-" PC_PW=FILL_IN_HERE'
+# Check the agent's adapterConfig was patched
+ssh <ssh-host> "curl -s 'http://localhost:3100/api/agents' \
+  -b /tmp/pc_wire_cookies.txt \
+  -H 'Origin: http://localhost:3100'" | python3 -c "
+import sys, json
+for a in json.load(sys.stdin):
+    print(a['name'], a.get('adapterConfig', {}).get('extraArgs', 'NOT SET'))
+"
+
+# Watch container logs during a conversation (look for MCP handshake)
+ssh <ssh-host> "DOCKER_HOST=unix:///var/run/docker.sock docker logs paperclip-deploy-paperclip-1 --since 1m -f 2>&1 | grep -Ei 'mcp|plugin|tool|dinero|paperclip-plugin'"
 ```
 
-## Step 2: Write ~/.claude/settings.json inside container
-
-This is ephemeral (lost on container restart) but works until then:
+## Smoke testing all plugins
 
 ```bash
-ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker exec paperclip-deploy-paperclip-1 bash -c '
-mkdir -p /home/gustavemilholmsimonsen/.claude
-cat > /home/gustavemilholmsimonsen/.claude/settings.json << EOF
-{
-  \"skipDangerousModePermissionPrompt\": true,
-  \"mcpServers\": {
-    \"paperclip-plugins\": {
-      \"type\": \"stdio\",
-      \"command\": \"/usr/local/bin/node\",
-      \"args\": [\"/paperclip/mcp-proxy/index.js\"],
-      \"env\": {
-        \"PC_HOST\": \"http://100.66.0.88:3100\",
-        \"PC_EMAIL\": \"gustav@gearloose.dk\",
-        \"PC_PASSWORD\": \"FILL_IN\",
-        \"PC_COMPANY_ID\": \"df675b10-abcb-43e1-9a0c-69a88ccf705c\"
-      }
-    }
-  }
-}
-EOF
-echo settings written'"
+./scripts/smoke-test-plugins.sh <customer-slug>
 ```
 
-## Step 3 (alternative to Step 2): Patch execute.js to inject --mcp-config
+Checks health + executes one tool per installed plugin. Exit 0 = all pass.
 
-This survives container restarts (we patch the compiled JS).
+---
 
-Find the file:
-```bash
-ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker exec paperclip-deploy-paperclip-1 find /app -name 'execute.js' -path '*/claude-local/*' 2>/dev/null"
-```
+## Re-wiring after a Paperclip upgrade
 
-Look for the line that pushes extraArgs and add --mcp-config before it:
-```bash
-ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker exec paperclip-deploy-paperclip-1 grep -n 'extraArgs' /app/packages/adapters/claude-local/dist/server/execute.js | head -10"
-```
+If the container image is rebuilt (Paperclip upgrade):
+1. Re-run `wire-mcp-to-customer.sh` — it will re-copy the proxy and re-npm-install
+2. The `adapterConfig` patch on the agent persists in the DB, so step 6 is a no-op (patch is idempotent)
+3. Re-run `deploy-for-customer.sh` for any plugins (compiled JS in container is lost on rebuild)
 
-The patch: find the `return args` at the end of buildClaudeArgs, and insert:
-```javascript
-args.push("--mcp-config", "/paperclip/mcp-proxy-config.json");
-```
+## Known issue: Paperclip plugin-loader bug (patched in compiled JS)
 
-## Step 4: Make ~/.claude/settings.json survive restarts
+`plugin-loader.js` calls `toolDispatcher.registerPluginTools(pluginKey, manifest)` without passing
+the DB UUID → tools stored `pluginDbId = pluginKey` → `workerManager.isRunning()` returns false.
 
-Add to NUC crontab (@reboot):
-```
-@reboot sleep 30 && DOCKER_HOST=unix:///var/run/docker.sock /usr/bin/docker exec paperclip-deploy-paperclip-1 bash -c 'mkdir -p /home/gustavemilholmsimonsen/.claude && cat /paperclip/claude-settings.json > /home/gustavemilholmsimonsen/.claude/settings.json' 2>/dev/null
-```
+**Patch location:** inside container at:
+- `/app/server/dist/services/plugin-tool-dispatcher.js` line ~210
+- `/app/server/dist/services/plugin-loader.js` line ~1085
 
-Store the settings JSON at /paperclip/claude-settings.json (persists in volume).
-
-## Step 5: Verify
-
-```bash
-# Trigger CFO heartbeat
-ssh nuc "curl -s -X POST http://localhost:3100/api/companies/df675b10-abcb-43e1-9a0c-69a88ccf705c/agents/c1f1e634-24fe-4e40-b293-3bdc3ef7f8a0/heartbeat \
-  -b /tmp/pc_deploy_cookies.txt \
-  -H 'Origin: http://100.66.0.88:3100' \
-  -H 'Content-Type: application/json'"
-
-# Watch logs for MCP tool calls
-ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker logs paperclip-deploy-paperclip-1 --since 2m -f 2>&1 | grep -E 'mcp|plugin|tool|dinero' -i"
-```
+This patch is **lost on container image rebuild**. Must reapply. See `PLUGIN-SYSTEM.md` for details.
