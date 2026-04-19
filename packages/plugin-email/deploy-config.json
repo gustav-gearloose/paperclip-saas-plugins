@@ -1,15 +1,15 @@
 {
   "configJson": {
-    "emailUser": "gustav@gearloose.dk",
-    "imapHost": "mail.your-server.de",
+    "emailUser": "REPLACE_WITH_EMAIL",
+    "imapHost": "REPLACE_WITH_IMAP_HOST",
     "imapPort": 993,
-    "smtpHost": "mail.your-server.de",
+    "smtpHost": "REPLACE_WITH_SMTP_HOST",
     "smtpPort": 465,
-    "displayName": "Gearloose"
+    "displayName": "REPLACE_WITH_DISPLAY_NAME"
   },
   "secretRefs": {
     "emailPasswordRef": {
-      "uuid": "58b7e607-afd8-41b7-ad47-8418e359a7f0"
+      "uuid": "REPLACE_WITH_SECRET_UUID"
     }
   }
 }

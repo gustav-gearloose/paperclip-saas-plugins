@@ -1,16 +1,16 @@
 {
   "configJson": {
-    "dineroOrgId": "564267"
+    "dineroOrgId": "REPLACE_WITH_ORG_ID"
   },
   "secretRefs": {
     "dineroClientIdRef": {
-      "uuid": "8a8c1cba-d64c-4dac-9eb3-daa252685ed9"
+      "uuid": "REPLACE_WITH_SECRET_UUID"
     },
     "dineroClientSecretRef": {
-      "uuid": "35633f44-d581-4d81-920d-a4bc67ff8ac1"
+      "uuid": "REPLACE_WITH_SECRET_UUID"
     },
     "dineroApiKeyRef": {
-      "uuid": "b21418a2-55f7-4e10-b7c3-55f41d00bccb"
+      "uuid": "REPLACE_WITH_SECRET_UUID"
     }
   }
 }
