@@ -344,7 +344,29 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("e-conomic plugin ready — 10 tools registered");
+    ctx.tools.register(
+      "economic_book_draft_invoice",
+      {
+        displayName: "Book Draft Invoice",
+        description: "Book (finalize) a draft invoice in e-conomic, converting it to a booked invoice with a permanent invoice number.",
+        parametersSchema: {
+          type: "object",
+          required: ["draft_invoice_number"],
+          properties: {
+            draft_invoice_number: { type: "integer", description: "The draft invoice number to book." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.bookDraftInvoice(p.draft_invoice_number as number);
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("e-conomic plugin ready — 11 tools registered");
   },
 
   async onHealth() {

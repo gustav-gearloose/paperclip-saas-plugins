@@ -192,6 +192,18 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "economic_book_draft_invoice",
+      displayName: "Book Draft Invoice",
+      description: "Book (finalize) a draft invoice in e-conomic, converting it to a booked invoice with a permanent invoice number.",
+      parametersSchema: {
+        type: "object",
+        required: ["draft_invoice_number"],
+        properties: {
+          draft_invoice_number: { type: "integer", description: "The draft invoice number to book." },
+        },
+      },
+    },
   ],
 };
 

@@ -163,6 +163,18 @@ export class EconomicClient {
     return resp.json();
   }
 
+  async bookDraftInvoice(draftInvoiceNumber: number): Promise<unknown> {
+    const resp = await fetch(`${BASE}/invoices/booked`, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify({ draftInvoice: { draftInvoiceNumber } }),
+    });
+    if (!resp.ok) {
+      throw new Error(`e-conomic API ${resp.status} POST /invoices/booked: ${await resp.text()}`);
+    }
+    return resp.json();
+  }
+
   async listJournalEntries(opts?: { pageSize?: number; skipPages?: number }): Promise<unknown> {
     return this.get("/journals/paged", {
       pagesize: opts?.pageSize ?? 50,
