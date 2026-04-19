@@ -115,6 +115,21 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "sheets_create_sheet",
+      displayName: "Create Sheet",
+      description: "Add a new sheet (tab) to an existing Google Spreadsheet.",
+      parametersSchema: {
+        type: "object",
+        required: ["spreadsheet_id", "title"],
+        properties: {
+          spreadsheet_id: { type: "string", description: "Spreadsheet ID from the URL." },
+          title: { type: "string", description: "Name of the new sheet tab." },
+          row_count: { type: "integer", description: "Initial row count (default 1000)." },
+          column_count: { type: "integer", description: "Initial column count (default 26)." },
+        },
+      },
+    },
   ],
 };
 

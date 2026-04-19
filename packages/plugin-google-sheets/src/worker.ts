@@ -179,7 +179,39 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("Google Sheets plugin ready — 5 tools registered");
+    ctx.tools.register(
+      "sheets_create_sheet",
+      {
+        displayName: "Create Sheet",
+        description: "Add a new sheet (tab) to an existing Google Spreadsheet.",
+        parametersSchema: {
+          type: "object",
+          required: ["spreadsheet_id", "title"],
+          properties: {
+            spreadsheet_id: { type: "string", description: "Spreadsheet ID from the URL." },
+            title: { type: "string", description: "Name of the new sheet tab." },
+            row_count: { type: "integer", description: "Initial row count (default 1000)." },
+            column_count: { type: "integer", description: "Initial column count (default 26)." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.createSheet(
+            p.spreadsheet_id as string,
+            p.title as string,
+            {
+              rowCount: p.row_count as number | undefined,
+              columnCount: p.column_count as number | undefined,
+            }
+          );
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("Google Sheets plugin ready — 6 tools registered");
   },
 
   async onHealth() {

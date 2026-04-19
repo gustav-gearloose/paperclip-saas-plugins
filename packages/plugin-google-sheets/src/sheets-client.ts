@@ -188,4 +188,33 @@ export class GoogleSheetsClient {
 
     return { clearedRange: data.clearedRange };
   }
+
+  async createSheet(
+    spreadsheetId: string,
+    title: string,
+    opts?: { rowCount?: number; columnCount?: number }
+  ): Promise<{ sheetId: number; title: string }> {
+    const data = await this.apiFetch(
+      `/${spreadsheetId}:batchUpdate`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requests: [{
+            addSheet: {
+              properties: {
+                title,
+                gridProperties: {
+                  rowCount: opts?.rowCount ?? 1000,
+                  columnCount: opts?.columnCount ?? 26,
+                },
+              },
+            },
+          }],
+        }),
+      }
+    ) as { replies: Array<{ addSheet: { properties: { sheetId: number; title: string } } }> };
+
+    const props = data.replies[0].addSheet.properties;
+    return { sheetId: props.sheetId, title: props.title };
+  }
 }
