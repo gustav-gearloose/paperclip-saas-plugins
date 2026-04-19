@@ -317,7 +317,51 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("Dinero plugin ready — 9 tools registered");
+    ctx.tools.register(
+      "dinero_create_contact",
+      {
+        displayName: "Create Contact",
+        description: "Create a new contact (customer or supplier) in Dinero.",
+        parametersSchema: {
+          type: "object",
+          required: ["name"],
+          properties: {
+            name: { type: "string", description: "Contact name." },
+            email: { type: "string" },
+            phone: { type: "string" },
+            address: { type: "string" },
+            city: { type: "string" },
+            zip_code: { type: "string" },
+            country_key: { type: "string", description: "ISO country code, e.g. DK." },
+            vat_number: { type: "string", description: "VAT / CVR number." },
+            is_person: { type: "boolean", description: "True for individual contacts (default false = company)." },
+            is_customer: { type: "boolean", description: "Mark as customer (default true)." },
+            is_supplier: { type: "boolean", description: "Mark as supplier (default false)." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.createContact({
+            name: p.name as string,
+            email: p.email as string | undefined,
+            phone: p.phone as string | undefined,
+            address: p.address as string | undefined,
+            city: p.city as string | undefined,
+            zipCode: p.zip_code as string | undefined,
+            countryKey: p.country_key as string | undefined,
+            vatNumber: p.vat_number as string | undefined,
+            isPerson: p.is_person as boolean | undefined,
+            isCustomer: p.is_customer as boolean | undefined,
+            isSupplier: p.is_supplier as boolean | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("Dinero plugin ready — 10 tools registered");
   },
 
   async onHealth() {

@@ -159,6 +159,28 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "billy_create_contact",
+      displayName: "Create Contact",
+      description: "Create a new contact (customer or supplier) in Billy.",
+      parametersSchema: {
+        type: "object",
+        required: ["name"],
+        properties: {
+          name: { type: "string", description: "Contact name." },
+          contact_no: { type: "string", description: "Optional custom contact number." },
+          type: { type: "string", enum: ["company", "person"], description: "Contact type (default: company)." },
+          email: { type: "string" },
+          phone: { type: "string" },
+          street: { type: "string" },
+          city: { type: "string" },
+          zipcode: { type: "string" },
+          country_id: { type: "string", description: "ISO country code, e.g. DK." },
+          currency_id: { type: "string", description: "ISO currency code, e.g. DKK." },
+          payment_terms_days: { type: "integer", description: "Net payment days." },
+        },
+      },
+    },
   ],
 };
 

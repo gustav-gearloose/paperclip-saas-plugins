@@ -254,7 +254,51 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("Billy plugin ready — 9 tools registered");
+    ctx.tools.register(
+      "billy_create_contact",
+      {
+        displayName: "Create Contact",
+        description: "Create a new contact (customer or supplier) in Billy.",
+        parametersSchema: {
+          type: "object",
+          required: ["name"],
+          properties: {
+            name: { type: "string", description: "Contact name." },
+            contact_no: { type: "string", description: "Optional custom contact number." },
+            type: { type: "string", enum: ["company", "person"], description: "Contact type (default: company)." },
+            email: { type: "string" },
+            phone: { type: "string" },
+            street: { type: "string" },
+            city: { type: "string" },
+            zipcode: { type: "string" },
+            country_id: { type: "string", description: "ISO country code, e.g. DK." },
+            currency_id: { type: "string", description: "ISO currency code, e.g. DKK." },
+            payment_terms_days: { type: "integer", description: "Net payment days." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.createContact({
+            name: p.name as string,
+            contactNo: p.contact_no as string | undefined,
+            type: p.type as "company" | "person" | undefined,
+            email: p.email as string | undefined,
+            phone: p.phone as string | undefined,
+            street: p.street as string | undefined,
+            city: p.city as string | undefined,
+            zipcode: p.zipcode as string | undefined,
+            countryId: p.country_id as string | undefined,
+            currencyId: p.currency_id as string | undefined,
+            paymentTermsDays: p.payment_terms_days as number | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("Billy plugin ready — 10 tools registered");
   },
 
   async onHealth() {

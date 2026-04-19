@@ -171,6 +171,35 @@ export class DineroClient {
     });
   }
 
+  async createContact(contact: {
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    zipCode?: string;
+    countryKey?: string;
+    vatNumber?: string;
+    isPerson?: boolean;
+    isCustomer?: boolean;
+    isSupplier?: boolean;
+  }): Promise<unknown> {
+    const body: Record<string, unknown> = {
+      Name: contact.name,
+      IsPerson: contact.isPerson ?? false,
+      IsCustomer: contact.isCustomer ?? true,
+      IsSupplier: contact.isSupplier ?? false,
+    };
+    if (contact.email) body["Email"] = contact.email;
+    if (contact.phone) body["Phone"] = contact.phone;
+    if (contact.address) body["Address"] = contact.address;
+    if (contact.city) body["City"] = contact.city;
+    if (contact.zipCode) body["ZipCode"] = contact.zipCode;
+    if (contact.countryKey) body["CountryKey"] = contact.countryKey;
+    if (contact.vatNumber) body["VatNumber"] = contact.vatNumber;
+    return this.request("/contacts", { method: "POST", body: JSON.stringify(body) });
+  }
+
   // ── Financial Summary (composite) ─────────────────────────────────────────
 
   async getFinancialSummary(fiscalYear?: number): Promise<unknown> {

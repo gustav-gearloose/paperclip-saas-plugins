@@ -177,6 +177,28 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "dinero_create_contact",
+      displayName: "Create Contact",
+      description: "Create a new contact (customer or supplier) in Dinero.",
+      parametersSchema: {
+        type: "object",
+        required: ["name"],
+        properties: {
+          name: { type: "string", description: "Contact name." },
+          email: { type: "string" },
+          phone: { type: "string" },
+          address: { type: "string" },
+          city: { type: "string" },
+          zip_code: { type: "string" },
+          country_key: { type: "string", description: "ISO country code, e.g. DK." },
+          vat_number: { type: "string", description: "VAT / CVR number." },
+          is_person: { type: "boolean", description: "True for individual, false for company (default)." },
+          is_customer: { type: "boolean", description: "Mark as customer (default true)." },
+          is_supplier: { type: "boolean", description: "Mark as supplier (default false)." },
+        },
+      },
+    },
   ],
 };
 

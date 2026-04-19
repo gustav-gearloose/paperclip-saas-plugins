@@ -97,6 +97,45 @@ export class BillyClient {
     });
   }
 
+  async createContact(contact: {
+    name: string;
+    contactNo?: string;
+    type?: "company" | "person";
+    email?: string;
+    phone?: string;
+    street?: string;
+    city?: string;
+    zipcode?: string;
+    countryId?: string;
+    currencyId?: string;
+    paymentTermsDays?: number;
+  }): Promise<unknown> {
+    const body = {
+      contact: {
+        name: contact.name,
+        ...(contact.contactNo ? { contactNo: contact.contactNo } : {}),
+        type: contact.type ?? "company",
+        ...(contact.email ? { email: contact.email } : {}),
+        ...(contact.phone ? { phone: contact.phone } : {}),
+        ...(contact.street ? { street: contact.street } : {}),
+        ...(contact.city ? { city: contact.city } : {}),
+        ...(contact.zipcode ? { zipcode: contact.zipcode } : {}),
+        countryId: contact.countryId ?? "DKK",
+        currencyId: contact.currencyId ?? "DKK",
+        ...(contact.paymentTermsDays !== undefined
+          ? { paymentTermsDays: contact.paymentTermsDays }
+          : {}),
+      },
+    };
+    const resp = await fetch(`${BASE}/contacts`, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) throw new Error(`Billy API ${resp.status} POST /contacts: ${await resp.text()}`);
+    return resp.json();
+  }
+
   async createInvoice(invoice: {
     contactId: string;
     entryDate: string;
