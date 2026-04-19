@@ -76,6 +76,15 @@ async function authenticate(): Promise<void> {
   }
 }
 
+async function safeJson(resp: Response): Promise<unknown> {
+  const text = await resp.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Non-JSON response (${resp.status}): ${text.slice(0, 200)}`);
+  }
+}
+
 async function pcFetch(path: string, init?: RequestInit): Promise<unknown> {
   const resp = await fetch(`${PC_HOST}${path}`, {
     ...init,
@@ -87,7 +96,6 @@ async function pcFetch(path: string, init?: RequestInit): Promise<unknown> {
     },
   });
   if (resp.status === 401) {
-    // Re-auth and retry once
     await authenticate();
     const retry = await fetch(`${PC_HOST}${path}`, {
       ...init,
@@ -98,9 +106,9 @@ async function pcFetch(path: string, init?: RequestInit): Promise<unknown> {
         ...(init?.headers as Record<string, string> | undefined),
       },
     });
-    return retry.json();
+    return safeJson(retry);
   }
-  return resp.json();
+  return safeJson(resp);
 }
 
 async function listPluginTools(): Promise<AgentToolDescriptor[]> {
@@ -184,6 +192,10 @@ async function main(): Promise<void> {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args = {} } = request.params;
+    // Refresh if tool not in map (handles newly installed plugins without proxy restart)
+    if (!toolMap.has(name)) {
+      await refreshTools();
+    }
     try {
       const resp = await executePluginTool(
         name,
