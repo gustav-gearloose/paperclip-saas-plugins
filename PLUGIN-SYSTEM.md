@@ -187,8 +187,8 @@ Body: { "adapterConfig": { "extraArgs": ["--settings", "/paperclip/mcp-proxy-con
 |--------|---------|--------|
 | Google Sheets | `packages/plugin-google-sheets` | ✅ built, ready to deploy |
 | e-conomic | `packages/plugin-economic` | ✅ built, ready to deploy |
-| Billy | — | 🔲 not started |
-| HubSpot CRM | — | 🔲 not started |
+| Billy | `packages/plugin-billy` | ✅ built, ready to deploy |
+| HubSpot CRM | `packages/plugin-hubspot` | ✅ built, ready to deploy |
 | Zendesk | — | 🔲 not started |
 
 Each follows the same manifest+worker pattern. Estimated 2-4 hours per plugin using existing plugins as template.

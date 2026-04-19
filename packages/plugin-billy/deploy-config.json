@@ -1,0 +1,7 @@
+{
+  "pluginId": "gearloose.billy",
+  "instanceId": "billy-default",
+  "config": {
+    "accessTokenRef": "${BILLY_SECRET_UUID}"
+  }
+}
