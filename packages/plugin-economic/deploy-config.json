@@ -1,0 +1,11 @@
+{
+  "configJson": {},
+  "secretRefs": {
+    "appSecretTokenRef": {
+      "uuid": "REPLACE_WITH_APP_SECRET_UUID"
+    },
+    "agreementGrantTokenRef": {
+      "uuid": "REPLACE_WITH_GRANT_TOKEN_UUID"
+    }
+  }
+}

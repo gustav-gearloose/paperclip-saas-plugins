@@ -1,0 +1,21 @@
+{
+  "name": "@gearloose/paperclip-mcp-plugin-proxy",
+  "version": "0.1.0",
+  "description": "MCP server that proxies Paperclip plugin tools to Claude agents",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "paperclip-mcp-proxy": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
