@@ -221,7 +221,76 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("HubSpot plugin ready — 8 tools registered");
+    ctx.tools.register(
+      "hubspot_create_contact",
+      {
+        displayName: "Create Contact",
+        description: "Create a new contact in HubSpot CRM.",
+        parametersSchema: {
+          type: "object",
+          properties: {
+            email: { type: "string", description: "Contact email address." },
+            first_name: { type: "string" },
+            last_name: { type: "string" },
+            phone: { type: "string" },
+            company: { type: "string" },
+            job_title: { type: "string" },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.createContact({
+            email: p.email as string | undefined,
+            firstName: p.first_name as string | undefined,
+            lastName: p.last_name as string | undefined,
+            phone: p.phone as string | undefined,
+            company: p.company as string | undefined,
+            jobTitle: p.job_title as string | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "hubspot_create_deal",
+      {
+        displayName: "Create Deal",
+        description: "Create a new deal in HubSpot CRM, optionally associating with a contact and company.",
+        parametersSchema: {
+          type: "object",
+          required: ["name"],
+          properties: {
+            name: { type: "string", description: "Deal name." },
+            stage: { type: "string", description: "HubSpot deal stage ID (default: appointmentscheduled)." },
+            amount: { type: "number", description: "Deal amount." },
+            close_date: { type: "string", description: "Expected close date (YYYY-MM-DD)." },
+            pipeline: { type: "string", description: "Pipeline ID (default: default)." },
+            contact_id: { type: "string", description: "HubSpot contact ID to associate with the deal." },
+            company_id: { type: "string", description: "HubSpot company ID to associate with the deal." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.createDeal({
+            name: p.name as string,
+            stage: p.stage as string | undefined,
+            amount: p.amount as number | undefined,
+            closeDate: p.close_date as string | undefined,
+            pipeline: p.pipeline as string | undefined,
+            contactId: p.contact_id as string | undefined,
+            companyId: p.company_id as string | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("HubSpot plugin ready — 10 tools registered");
   },
 
   async onHealth() {

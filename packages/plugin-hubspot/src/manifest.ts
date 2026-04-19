@@ -133,6 +133,40 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "hubspot_create_contact",
+      displayName: "Create Contact",
+      description: "Create a new contact in HubSpot CRM.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "Contact email address." },
+          first_name: { type: "string" },
+          last_name: { type: "string" },
+          phone: { type: "string" },
+          company: { type: "string" },
+          job_title: { type: "string" },
+        },
+      },
+    },
+    {
+      name: "hubspot_create_deal",
+      displayName: "Create Deal",
+      description: "Create a new deal in HubSpot CRM, optionally associating with a contact and company.",
+      parametersSchema: {
+        type: "object",
+        required: ["name"],
+        properties: {
+          name: { type: "string", description: "Deal name." },
+          stage: { type: "string", description: "HubSpot deal stage ID (default: appointmentscheduled)." },
+          amount: { type: "number", description: "Deal amount." },
+          close_date: { type: "string", description: "Expected close date (YYYY-MM-DD)." },
+          pipeline: { type: "string", description: "Pipeline ID (default: default)." },
+          contact_id: { type: "string", description: "HubSpot contact ID to associate with the deal." },
+          company_id: { type: "string", description: "HubSpot company ID to associate with the deal." },
+        },
+      },
+    },
   ],
 };
 

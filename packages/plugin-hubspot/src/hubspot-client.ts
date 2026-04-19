@@ -169,4 +169,57 @@ export class HubSpotClient {
 
     return note;
   }
+
+  async createContact(opts: {
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    company?: string;
+    jobTitle?: string;
+  }): Promise<unknown> {
+    const properties: Record<string, string> = {};
+    if (opts.email) properties["email"] = opts.email;
+    if (opts.firstName) properties["firstname"] = opts.firstName;
+    if (opts.lastName) properties["lastname"] = opts.lastName;
+    if (opts.phone) properties["phone"] = opts.phone;
+    if (opts.company) properties["company"] = opts.company;
+    if (opts.jobTitle) properties["jobtitle"] = opts.jobTitle;
+    return this.post("/crm/v3/objects/contacts", { properties });
+  }
+
+  async createDeal(opts: {
+    name: string;
+    stage?: string;
+    amount?: number;
+    closeDate?: string;
+    pipeline?: string;
+    contactId?: string;
+    companyId?: string;
+  }): Promise<unknown> {
+    const properties: Record<string, string> = {
+      dealname: opts.name,
+      dealstage: opts.stage ?? "appointmentscheduled",
+      pipeline: opts.pipeline ?? "default",
+    };
+    if (opts.amount !== undefined) properties["amount"] = String(opts.amount);
+    if (opts.closeDate) properties["closedate"] = opts.closeDate;
+
+    const deal = await this.post("/crm/v3/objects/deals", { properties }) as { id: string };
+
+    const assocPromises: Promise<unknown>[] = [];
+    if (opts.contactId) {
+      assocPromises.push(this.post(
+        `/crm/v3/objects/deals/${deal.id}/associations/contacts/${opts.contactId}/3`, {}
+      ));
+    }
+    if (opts.companyId) {
+      assocPromises.push(this.post(
+        `/crm/v3/objects/deals/${deal.id}/associations/companies/${opts.companyId}/5`, {}
+      ));
+    }
+    if (assocPromises.length > 0) await Promise.allSettled(assocPromises);
+
+    return deal;
+  }
 }
