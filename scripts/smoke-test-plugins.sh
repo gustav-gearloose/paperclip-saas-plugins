@@ -102,13 +102,6 @@ fi
 # ── per-plugin smoke test ─────────────────────────────────────────────────────
 
 # Map: plugin key substring → lightweight tool name + minimal params
-declare_smoke_tool() {
-  local key_pattern="$1"
-  local tool="$2"
-  local params="$3"
-  echo "$key_pattern|$tool|$params"
-}
-
 SMOKE_TOOLS=(
   "dinero|dinero_list_contacts|{}"
   "billy|billy_list_contacts|{}"
@@ -116,10 +109,10 @@ SMOKE_TOOLS=(
   "zendesk|zendesk_list_tickets|{\"page_size\":1}"
   "hubspot|hubspot_search_contacts|{\"limit\":1}"
   "slack|slack_list_channels|{}"
-  "google-sheets|sheets_get_spreadsheet_info|{\"spreadsheet_id\":\"placeholder\"}"
   "notion|notion_search|{\"query\":\"\"}"
   "linear|linear_list_teams|{}"
   "email|email_list_folders|{}"
+  # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
 while IFS=$'\t' read -r plugin_id display_name status plugin_key; do
