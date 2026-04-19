@@ -175,4 +175,27 @@ export class EmailClient {
       await client.logout();
     }
   }
+
+  async moveEmail(uid: number, fromFolder: string, toFolder: string): Promise<void> {
+    const client = this.makeImapClient();
+    await client.connect();
+    try {
+      await client.mailboxOpen(fromFolder, { readOnly: false });
+      await client.messageMove([uid], toFolder, { uid: true });
+    } finally {
+      await client.logout();
+    }
+  }
+
+  async deleteEmail(uid: number, folder = "INBOX"): Promise<void> {
+    const client = this.makeImapClient();
+    await client.connect();
+    try {
+      await client.mailboxOpen(folder, { readOnly: false });
+      await client.messageFlagsAdd([uid], ["\\Deleted"], { uid: true });
+      await client.mailboxClose();
+    } finally {
+      await client.logout();
+    }
+  }
 }

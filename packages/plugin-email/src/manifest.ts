@@ -130,6 +130,33 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "email_move",
+      displayName: "Move Email",
+      description: "Move an email to another IMAP folder (e.g. to archive or a project folder).",
+      parametersSchema: {
+        type: "object",
+        required: ["uid", "from_folder", "to_folder"],
+        properties: {
+          uid: { type: "integer", description: "Email UID." },
+          from_folder: { type: "string", description: "Source folder name (e.g. INBOX)." },
+          to_folder: { type: "string", description: "Destination folder name." },
+        },
+      },
+    },
+    {
+      name: "email_delete",
+      displayName: "Delete Email",
+      description: "Delete an email by marking it for deletion and closing the mailbox.",
+      parametersSchema: {
+        type: "object",
+        required: ["uid"],
+        properties: {
+          uid: { type: "integer", description: "Email UID." },
+          folder: { type: "string", description: "Folder name. Default: INBOX." },
+        },
+      },
+    },
   ],
 };
 

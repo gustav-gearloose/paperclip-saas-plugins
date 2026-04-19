@@ -171,7 +171,54 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("Email plugin ready — 5 tools registered");
+    ctx.tools.register(
+      "email_move",
+      {
+        displayName: "Move Email",
+        description: "Move an email to another IMAP folder (e.g. to archive or a project folder).",
+        parametersSchema: {
+          type: "object",
+          required: ["uid", "from_folder", "to_folder"],
+          properties: {
+            uid: { type: "integer", description: "Email UID." },
+            from_folder: { type: "string", description: "Source folder name (e.g. INBOX)." },
+            to_folder: { type: "string", description: "Destination folder name." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          await client.moveEmail(p.uid as number, p.from_folder as string, p.to_folder as string);
+          return { content: `Email ${p.uid} moved from ${p.from_folder} to ${p.to_folder}.` };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "email_delete",
+      {
+        displayName: "Delete Email",
+        description: "Delete (trash) an email by marking it \\Deleted and closing the mailbox.",
+        parametersSchema: {
+          type: "object",
+          required: ["uid"],
+          properties: {
+            uid: { type: "integer", description: "Email UID." },
+            folder: { type: "string", description: "Folder name. Default: INBOX." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          await client.deleteEmail(p.uid as number, p.folder as string | undefined);
+          return { content: `Email ${p.uid} deleted.` };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("Email plugin ready — 7 tools registered");
   },
 
   async onHealth() {
