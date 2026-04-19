@@ -35,37 +35,8 @@ const plugin = definePlugin({
       return;
     }
 
-    // Fetch a bearer token from Dinero's OAuth2 server using Basic auth + API key as password
-    let bearerToken: string;
-    try {
-      const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-      const tokenRes = await fetch("https://authz.dinero.dk/dineroapi/oauth/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Authorization": `Basic ${basicAuth}`,
-        },
-        body: new URLSearchParams({
-          grant_type: "password",
-          scope: "read write",
-          username: apiKey,
-          password: apiKey,
-        }),
-      });
-      if (!tokenRes.ok) {
-        const body = await tokenRes.text().catch(() => "");
-        throw new Error(`Token endpoint returned ${tokenRes.status}: ${body}`);
-      }
-      const tokenJson = await tokenRes.json() as Record<string, unknown>;
-      bearerToken = tokenJson["access_token"] as string;
-      if (!bearerToken) throw new Error("No access_token in response");
-    } catch (err) {
-      ctx.logger.error(`Dinero plugin: failed to obtain bearer token: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("Dinero plugin: bearer token obtained, registering tools");
-    const client = new DineroClient({ accessToken: bearerToken, orgId });
+    ctx.logger.info("Dinero plugin: secrets resolved, registering tools");
+    const client = new DineroClient({ clientId, clientSecret, apiKey, orgId });
 
     ctx.tools.register(
       "dinero_list_invoices",

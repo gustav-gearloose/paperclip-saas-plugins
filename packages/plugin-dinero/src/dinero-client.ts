@@ -1,23 +1,50 @@
 const DINERO_API_BASE = "https://api.dinero.dk/v1";
 
 export interface DineroConfig {
-  accessToken: string;
+  clientId: string;
+  clientSecret: string;
+  apiKey: string;
   orgId: string;
 }
 
 export class DineroClient {
   private config: DineroConfig;
+  private accessToken = "";
+  private tokenExpiresAt = 0;
 
   constructor(config: DineroConfig) {
     this.config = config;
   }
 
+  private async ensureToken(): Promise<void> {
+    if (this.accessToken && Date.now() < this.tokenExpiresAt - 60_000) return;
+    const { clientId, clientSecret, apiKey } = this.config;
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+    const res = await fetch("https://authz.dinero.dk/dineroapi/oauth/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": `Basic ${basicAuth}`,
+      },
+      body: new URLSearchParams({ grant_type: "password", scope: "read write", username: apiKey, password: apiKey }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Dinero token refresh failed ${res.status}: ${body}`);
+    }
+    const json = await res.json() as Record<string, unknown>;
+    this.accessToken = json["access_token"] as string;
+    const expiresIn = (json["expires_in"] as number) ?? 3600;
+    this.tokenExpiresAt = Date.now() + expiresIn * 1000;
+  }
+
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    await this.ensureToken();
     const url = `${DINERO_API_BASE}/${this.config.orgId}${path}`;
     const res = await fetch(url, {
       ...options,
       headers: {
-        Authorization: `Bearer ${this.config.accessToken}`,
+        Authorization: `Bearer ${this.accessToken}`,
         "Content-Type": "application/json",
         Accept: "application/json",
         ...(options.headers ?? {})
