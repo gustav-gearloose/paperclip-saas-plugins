@@ -115,6 +115,24 @@ export class ZendeskClient {
     return this.get("/groups");
   }
 
+  async updateTicket(ticketId: number, opts: {
+    status?: "open" | "pending" | "hold" | "solved" | "closed";
+    priority?: "low" | "normal" | "high" | "urgent";
+    subject?: string;
+    assigneeId?: number;
+    groupId?: number;
+    tags?: string[];
+  }): Promise<unknown> {
+    const ticket: Record<string, unknown> = {};
+    if (opts.status) ticket["status"] = opts.status;
+    if (opts.priority) ticket["priority"] = opts.priority;
+    if (opts.subject) ticket["subject"] = opts.subject;
+    if (opts.assigneeId !== undefined) ticket["assignee_id"] = opts.assigneeId;
+    if (opts.groupId !== undefined) ticket["group_id"] = opts.groupId;
+    if (opts.tags) ticket["tags"] = opts.tags;
+    return this.post(`/tickets/${ticketId}`, { ticket });
+  }
+
   async addTicketComment(ticketId: number, opts: {
     body: string;
     public?: boolean;

@@ -157,6 +157,24 @@ const manifest: PaperclipPluginManifestV1 = {
       parametersSchema: { type: "object", properties: {} },
     },
     {
+      name: "zendesk_update_ticket",
+      displayName: "Update Ticket",
+      description: "Update a Zendesk ticket's status, priority, subject, assignee, or tags.",
+      parametersSchema: {
+        type: "object",
+        required: ["ticket_id"],
+        properties: {
+          ticket_id: { type: "integer", description: "Zendesk ticket ID." },
+          status: { type: "string", enum: ["open", "pending", "hold", "solved", "closed"], description: "New ticket status." },
+          priority: { type: "string", enum: ["low", "normal", "high", "urgent"], description: "New priority." },
+          subject: { type: "string", description: "New subject line." },
+          assignee_id: { type: "integer", description: "Zendesk user ID to assign the ticket to." },
+          group_id: { type: "integer", description: "Zendesk group ID to assign the ticket to." },
+          tags: { type: "array", items: { type: "string" }, description: "Replace ticket tags with this list." },
+        },
+      },
+    },
+    {
       name: "zendesk_add_ticket_comment",
       displayName: "Add Ticket Comment",
       description: "Add a comment (reply) to a Zendesk ticket. Public replies go to the requester; internal notes are agent-only.",

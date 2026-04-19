@@ -167,6 +167,40 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "hubspot_update_contact",
+      displayName: "Update Contact",
+      description: "Update properties on an existing HubSpot contact.",
+      parametersSchema: {
+        type: "object",
+        required: ["contact_id", "properties"],
+        properties: {
+          contact_id: { type: "string", description: "HubSpot contact ID." },
+          properties: {
+            type: "object",
+            description: "Key-value map of HubSpot contact properties to update.",
+            additionalProperties: { type: "string" },
+          },
+        },
+      },
+    },
+    {
+      name: "hubspot_update_deal",
+      displayName: "Update Deal",
+      description: "Update properties on an existing HubSpot deal (e.g. stage, amount, close date).",
+      parametersSchema: {
+        type: "object",
+        required: ["deal_id", "properties"],
+        properties: {
+          deal_id: { type: "string", description: "HubSpot deal ID." },
+          properties: {
+            type: "object",
+            description: "Key-value map of HubSpot deal properties to update.",
+            additionalProperties: { type: "string" },
+          },
+        },
+      },
+    },
   ],
 };
 

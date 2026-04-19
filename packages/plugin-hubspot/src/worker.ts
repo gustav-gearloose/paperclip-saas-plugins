@@ -290,7 +290,61 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("HubSpot plugin ready — 10 tools registered");
+    ctx.tools.register(
+      "hubspot_update_contact",
+      {
+        displayName: "Update Contact",
+        description: "Update properties on an existing HubSpot contact.",
+        parametersSchema: {
+          type: "object",
+          required: ["contact_id", "properties"],
+          properties: {
+            contact_id: { type: "string", description: "HubSpot contact ID." },
+            properties: {
+              type: "object",
+              description: "Key-value map of HubSpot contact properties to update (e.g. { \"firstname\": \"Jane\", \"phone\": \"+45...\" }).",
+              additionalProperties: { type: "string" },
+            },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.updateContact(p.contact_id as string, p.properties as Record<string, string>);
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "hubspot_update_deal",
+      {
+        displayName: "Update Deal",
+        description: "Update properties on an existing HubSpot deal (e.g. stage, amount, close date).",
+        parametersSchema: {
+          type: "object",
+          required: ["deal_id", "properties"],
+          properties: {
+            deal_id: { type: "string", description: "HubSpot deal ID." },
+            properties: {
+              type: "object",
+              description: "Key-value map of HubSpot deal properties to update (e.g. { \"dealstage\": \"closedwon\", \"amount\": \"5000\" }).",
+              additionalProperties: { type: "string" },
+            },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.updateDeal(p.deal_id as string, p.properties as Record<string, string>);
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("HubSpot plugin ready — 12 tools registered");
   },
 
   async onHealth() {

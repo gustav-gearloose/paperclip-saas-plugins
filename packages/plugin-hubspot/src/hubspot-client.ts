@@ -42,6 +42,26 @@ export class HubSpotClient {
     return resp.json();
   }
 
+  private async patch(path: string, body: unknown): Promise<unknown> {
+    const resp = await fetch(`${BASE}${path}`, {
+      method: "PATCH",
+      headers: this.headers,
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      throw new Error(`HubSpot API ${resp.status} PATCH ${path}: ${await resp.text()}`);
+    }
+    return resp.json();
+  }
+
+  async updateContact(id: string, properties: Record<string, string>): Promise<unknown> {
+    return this.patch(`/crm/v3/objects/contacts/${id}`, { properties });
+  }
+
+  async updateDeal(id: string, properties: Record<string, string>): Promise<unknown> {
+    return this.patch(`/crm/v3/objects/deals/${id}`, { properties });
+  }
+
   private async post(path: string, body: unknown): Promise<unknown> {
     const resp = await fetch(`${BASE}${path}`, {
       method: "POST",

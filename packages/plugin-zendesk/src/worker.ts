@@ -218,6 +218,41 @@ const plugin = definePlugin({
     );
 
     ctx.tools.register(
+      "zendesk_update_ticket",
+      {
+        displayName: "Update Ticket",
+        description: "Update a Zendesk ticket's status, priority, subject, assignee, or tags.",
+        parametersSchema: {
+          type: "object",
+          required: ["ticket_id"],
+          properties: {
+            ticket_id: { type: "integer", description: "Zendesk ticket ID." },
+            status: { type: "string", enum: ["open", "pending", "hold", "solved", "closed"], description: "New ticket status." },
+            priority: { type: "string", enum: ["low", "normal", "high", "urgent"], description: "New priority." },
+            subject: { type: "string", description: "New subject line." },
+            assignee_id: { type: "integer", description: "Zendesk user ID to assign the ticket to." },
+            group_id: { type: "integer", description: "Zendesk group ID to assign the ticket to." },
+            tags: { type: "array", items: { type: "string" }, description: "Replace ticket tags with this list." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.updateTicket(p.ticket_id as number, {
+            status: p.status as "open" | "pending" | "hold" | "solved" | "closed" | undefined,
+            priority: p.priority as "low" | "normal" | "high" | "urgent" | undefined,
+            subject: p.subject as string | undefined,
+            assigneeId: p.assignee_id as number | undefined,
+            groupId: p.group_id as number | undefined,
+            tags: p.tags as string[] | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
       "zendesk_add_ticket_comment",
       {
         displayName: "Add Ticket Comment",
@@ -246,7 +281,7 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("Zendesk plugin ready — 9 tools registered");
+    ctx.logger.info("Zendesk plugin ready — 10 tools registered");
   },
 
   async onHealth() {
