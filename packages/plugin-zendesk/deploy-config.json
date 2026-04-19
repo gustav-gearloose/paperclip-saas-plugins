@@ -1,0 +1,9 @@
+{
+  "pluginId": "gearloose.zendesk",
+  "instanceId": "zendesk-default",
+  "config": {
+    "subdomain": "${ZENDESK_SUBDOMAIN}",
+    "email": "${ZENDESK_AGENT_EMAIL}",
+    "apiTokenRef": "${ZENDESK_SECRET_UUID}"
+  }
+}

@@ -189,7 +189,7 @@ Body: { "adapterConfig": { "extraArgs": ["--settings", "/paperclip/mcp-proxy-con
 | e-conomic | `packages/plugin-economic` | ✅ built, ready to deploy |
 | Billy | `packages/plugin-billy` | ✅ built, ready to deploy |
 | HubSpot CRM | `packages/plugin-hubspot` | ✅ built, ready to deploy |
-| Zendesk | — | 🔲 not started |
+| Zendesk | `packages/plugin-zendesk` | ✅ built, ready to deploy |
 
 Each follows the same manifest+worker pattern. Estimated 2-4 hours per plugin using existing plugins as template.
 
