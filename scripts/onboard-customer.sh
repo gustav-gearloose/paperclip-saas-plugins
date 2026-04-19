@@ -162,6 +162,41 @@ if ! grep -q "*.secrets" "$REPO_ROOT/.gitignore" 2>/dev/null; then
   ok "Added *.secrets to .gitignore"
 fi
 
+# ── plugin lookup (Bash 3 compatible — no declare -A) ─────────────────────────
+
+plugin_dir() {
+  case "$1" in
+    1)  echo "packages/plugin-dinero" ;;
+    2)  echo "packages/plugin-billy" ;;
+    3)  echo "packages/plugin-economic" ;;
+    4)  echo "packages/plugin-zendesk" ;;
+    5)  echo "packages/plugin-hubspot" ;;
+    6)  echo "packages/plugin-slack" ;;
+    7)  echo "packages/plugin-google-sheets" ;;
+    8)  echo "packages/plugin-notion" ;;
+    9)  echo "packages/plugin-linear" ;;
+    10) echo "packages/plugin-email" ;;
+    *)  echo "" ;;
+  esac
+}
+
+# Returns tab-separated list of VAR_NAME entries (one per line) for a plugin
+plugin_env_vars() {
+  case "$1" in
+    1)  printf 'DINEROCLIENTIDREF\nDINEROCLIENTSECRETREF\nDINEROAPIKEYREF\nPLUGIN_CONFIG_dineroOrgId' ;;
+    2)  printf 'ACCESSTOKENREF' ;;
+    3)  printf 'APPSECRETTOKENREF\nAGREEMENTGRANTTOKENREF' ;;
+    4)  printf 'APITOKENREF\nPLUGIN_CONFIG_subdomain\nPLUGIN_CONFIG_email' ;;
+    5)  printf 'ACCESSTOKENREF' ;;
+    6)  printf 'BOTTOKENREF' ;;
+    7)  printf 'SERVICEACCOUNTJSONREF' ;;
+    8)  printf 'INTEGRATIONTOKENREF' ;;
+    9)  printf 'APIKEYREF' ;;
+    10) printf 'EMAILPASSWORDREF\nPLUGIN_CONFIG_emailUser\nPLUGIN_CONFIG_imapHost\nPLUGIN_CONFIG_imapPort\nPLUGIN_CONFIG_smtpHost\nPLUGIN_CONFIG_smtpPort' ;;
+    *)  printf '' ;;
+  esac
+}
+
 # ── plugin selection ──────────────────────────────────────────────────────────
 
 section "Plugin selection"
@@ -180,32 +215,6 @@ echo "   10) Email (IMAP/SMTP)"
 echo ""
 ask "Which plugins to install? (comma-separated numbers, e.g. 1,2,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
-
-declare -A PLUGIN_DIRS=(
-  [1]="packages/plugin-dinero"
-  [2]="packages/plugin-billy"
-  [3]="packages/plugin-economic"
-  [4]="packages/plugin-zendesk"
-  [5]="packages/plugin-hubspot"
-  [6]="packages/plugin-slack"
-  [7]="packages/plugin-google-sheets"
-  [8]="packages/plugin-notion"
-  [9]="packages/plugin-linear"
-  [10]="packages/plugin-email"
-)
-
-declare -A PLUGIN_ENV_VARS=(
-  [1]="DINEROCLIENTIDREF=<dinero-client-id> DINEROCLIENTSECRETREF=<dinero-client-secret> DINEROAPIKEYREF=<dinero-api-key> PLUGIN_CONFIG_dineroOrgId=<org-id>"
-  [2]="ACCESSTOKENREF=<billy-access-token>"
-  [3]="APPSECRETTOKENREF=<economic-app-secret-token> AGREEMENTGRANTTOKENREF=<economic-agreement-grant-token>"
-  [4]="APITOKENREF=<zendesk-api-token> PLUGIN_CONFIG_subdomain=<zendesk-subdomain> PLUGIN_CONFIG_email=<zendesk-agent-email>"
-  [5]="ACCESSTOKENREF=<hubspot-private-app-token>"
-  [6]="BOTTOKENREF=<slack-bot-token>"
-  [7]="SERVICEACCOUNTJSONREF=<service-account-json-string>"
-  [8]="INTEGRATIONTOKENREF=<notion-integration-token>"
-  [9]="APIKEYREF=<linear-personal-api-key>"
-  [10]="EMAILPASSWORDREF=<imap-smtp-password> PLUGIN_CONFIG_emailUser=<email> PLUGIN_CONFIG_imapHost=<imap-host> PLUGIN_CONFIG_imapPort=993 PLUGIN_CONFIG_smtpHost=<smtp-host> PLUGIN_CONFIG_smtpPort=465"
-)
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
@@ -239,41 +248,54 @@ if [[ ${#SELECTED_NUMS[@]} -gt 0 ]]; then
 
   for num in "${SELECTED_NUMS[@]}"; do
     num="${num// /}"
-    dir="${PLUGIN_DIRS[$num]:-}"
+    dir=$(plugin_dir "$num")
     [[ -z "$dir" ]] && { warn "Unknown plugin number: $num (skipping)"; continue; }
-    env_hint="${PLUGIN_ENV_VARS[$num]:-}"
     plugin_name=$(basename "$dir")
+    # Bash 3 compatible: read newline-separated output into array
+    env_var_names=()
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && env_var_names+=("$line")
+    done < <(plugin_env_vars "$num")
 
     echo ""
     echo -e "  ${CYAN}Plugin: $plugin_name${NC}"
-    echo "  Required env vars: $env_hint"
+    echo "  Required credentials: ${env_var_names[*]}"
     echo ""
     ask "  Provide credentials now? (y/N):"
     read -r do_provision
 
     if [[ ! "$do_provision" =~ ^[Yy]$ ]]; then
       info "Skipping $plugin_name. Provision later with:"
-      echo "      PC_PASSWORD=<pw> $env_hint \\"
+      echo "      PC_PASSWORD=<pw> \\"
+      for vn in "${env_var_names[@]}"; do
+        echo "        ${vn}=<value> \\"
+      done
       echo "        ./scripts/provision-plugin.sh $CUSTOMER $dir"
       continue
     fi
 
-    # Collect each env var interactively
-    declare -a EXTRA_ENV=()
-    for var_pair in $env_hint; do
-      var_name="${var_pair%%=*}"
-      ask "    $var_name:"
-      read -r var_val
-      EXTRA_ENV+=("${var_name}=${var_val}")
+    # Collect credentials interactively; export them so provision-plugin.sh sees them
+    for vn in "${env_var_names[@]}"; do
+      ask "    $vn:"
+      if [[ "$vn" == *PASSWORD* || "$vn" == *SECRET* || "$vn" == *TOKEN* || "$vn" == *KEY* ]]; then
+        read -rs vv; echo ""
+      else
+        read -r vv
+      fi
+      export "$vn=$vv"
     done
 
     info "Provisioning $plugin_name..."
-    if env PC_PASSWORD="$PC_PASSWORD" "${EXTRA_ENV[@]}" "$SCRIPT_DIR/provision-plugin.sh" "$CUSTOMER" "$dir"; then
+    if PC_PASSWORD="$PC_PASSWORD" "$SCRIPT_DIR/provision-plugin.sh" "$CUSTOMER" "$dir"; then
       ok "$plugin_name provisioned"
     else
       warn "$plugin_name provisioning failed. Check output above."
     fi
-    unset EXTRA_ENV
+
+    # Unset the credential vars we just exported
+    for vn in "${env_var_names[@]}"; do
+      unset "$vn"
+    done
   done
 fi
 
