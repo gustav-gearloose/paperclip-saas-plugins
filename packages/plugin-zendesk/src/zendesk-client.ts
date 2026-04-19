@@ -114,4 +114,20 @@ export class ZendeskClient {
   async listGroups(): Promise<unknown> {
     return this.get("/groups");
   }
+
+  async addTicketComment(ticketId: number, opts: {
+    body: string;
+    public?: boolean;
+    authorId?: number;
+  }): Promise<unknown> {
+    return this.post(`/tickets/${ticketId}`, {
+      ticket: {
+        comment: {
+          body: opts.body,
+          public: opts.public ?? true,
+          ...(opts.authorId ? { author_id: opts.authorId } : {}),
+        },
+      },
+    });
+  }
 }

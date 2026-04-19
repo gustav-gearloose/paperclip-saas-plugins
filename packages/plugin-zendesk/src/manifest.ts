@@ -156,6 +156,21 @@ const manifest: PaperclipPluginManifestV1 = {
       description: "List all Zendesk agent groups.",
       parametersSchema: { type: "object", properties: {} },
     },
+    {
+      name: "zendesk_add_ticket_comment",
+      displayName: "Add Ticket Comment",
+      description: "Add a comment (reply) to a Zendesk ticket. Public replies go to the requester; internal notes are agent-only.",
+      parametersSchema: {
+        type: "object",
+        required: ["ticket_id", "body"],
+        properties: {
+          ticket_id: { type: "integer", description: "Zendesk ticket ID." },
+          body: { type: "string", description: "Comment text." },
+          public: { type: "boolean", description: "If true (default), visible to the requester. If false, internal note." },
+          author_id: { type: "integer", description: "Zendesk user ID of the comment author." },
+        },
+      },
+    },
   ],
 };
 

@@ -217,7 +217,36 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("Zendesk plugin ready — 8 tools registered");
+    ctx.tools.register(
+      "zendesk_add_ticket_comment",
+      {
+        displayName: "Add Ticket Comment",
+        description: "Add a comment (reply) to a Zendesk ticket. Can be public (visible to requester) or internal note.",
+        parametersSchema: {
+          type: "object",
+          required: ["ticket_id", "body"],
+          properties: {
+            ticket_id: { type: "integer", description: "Zendesk ticket ID." },
+            body: { type: "string", description: "Comment text." },
+            public: { type: "boolean", description: "If true (default), visible to the requester. If false, internal note." },
+            author_id: { type: "integer", description: "Zendesk user ID of the comment author. Defaults to the API token owner." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.addTicketComment(p.ticket_id as number, {
+            body: p.body as string,
+            public: p.public as boolean | undefined,
+            authorId: p.author_id as number | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("Zendesk plugin ready — 9 tools registered");
   },
 
   async onHealth() {
