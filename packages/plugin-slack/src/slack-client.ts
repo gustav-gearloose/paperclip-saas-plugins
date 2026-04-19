@@ -74,7 +74,8 @@ export class SlackClient {
   }
 
   async uploadFile(channels: string, filename: string, content: string, title?: string): Promise<SlackResponse> {
-    return this.call("files.getUploadURLExternal", { filename, length: content.length }).then(async (urlResp) => {
+    const byteLength = new TextEncoder().encode(content).length;
+    return this.call("files.getUploadURLExternal", { filename, length: byteLength }).then(async (urlResp) => {
       const uploadUrl = urlResp.upload_url as string;
       const fileId = urlResp.file_id as string;
       await fetch(uploadUrl, {
