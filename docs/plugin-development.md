@@ -199,19 +199,25 @@ with open('~/paperclip-plugins-src/plugin-foo/package.json', 'w') as f: json.dum
 ssh nuc "sed -i 's|./dist/worker.js|./worker.js|g' ~/paperclip-plugins-src/plugin-foo/manifest.js"
 ```
 
-### 4. Copy into container (use a new path each time to bust Node's module cache)
+### 4. Copy into container and install dependencies
 
 ```bash
 # Increment v3 → v4 etc. on each deploy — Node caches imports by path
-ssh nuc "sg docker -c 'docker cp ~/paperclip-plugins-src/plugin-foo/ paperclip-deploy-paperclip-1:/paperclip-foo-v3'"
+ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker cp ~/paperclip-plugins-src/plugin-foo/ paperclip-deploy-paperclip-1:/paperclip-foo-v3"
 
-# Symlink the SDK (lives inside the container at /app/packages/plugins/sdk)
-ssh nuc "sg docker -c 'docker exec paperclip-deploy-paperclip-1 bash -c \
-  \"mkdir -p /paperclip-foo-v3/node_modules/@paperclipai && \
-   ln -sf /app/packages/plugins/sdk /paperclip-foo-v3/node_modules/@paperclipai/plugin-sdk\"'"
+# Install runtime dependencies INSIDE the container (not from Mac — CJS modules aren't portable)
+ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker exec paperclip-deploy-paperclip-1 bash -c \
+  'cd /paperclip-foo-v3 && npm install --ignore-scripts 2>&1 | tail -5'"
+
+# Symlink the SDK AFTER npm install (npm install would overwrite it)
+ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker exec paperclip-deploy-paperclip-1 bash -c \
+  'rm -rf /paperclip-foo-v3/node_modules/@paperclipai && \
+   mkdir -p /paperclip-foo-v3/node_modules/@paperclipai && \
+   ln -sfn /app/packages/plugins/sdk /paperclip-foo-v3/node_modules/@paperclipai/plugin-sdk && \
+   echo SDK symlinked'"
 ```
 
-> **Why symlink?** The SDK is already inside the container image. Symlinking avoids shipping a duplicate and ensures the plugin uses the exact SDK version Paperclip was built against.
+> **Why npm install inside the container?** Transitive CJS dependencies (e.g. imapflow → pino → quick-format-unescaped) are deeply nested and not portable from Mac to Linux. `npm` is available in the container and resolves all transitive deps cleanly. Always symlink the SDK AFTER running npm install, since npm will clear the `@paperclipai` dir.
 
 > **Why increment the path?** Node's dynamic `import()` caches by resolved file path. Redeploying to `/paperclip-foo-v2` after a code change will serve the old cached module. A new path (`v3`, `v4`, ...) forces a fresh import.
 
