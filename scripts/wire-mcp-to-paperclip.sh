@@ -34,28 +34,28 @@ eval "$DOCKER exec $CONTAINER ls $PROXY_PATH/index.js" 2>/dev/null \
 
 echo ""
 echo "=== Step 2: Write MCP config to /paperclip volume (persists across restarts) ==="
-# Writes the --settings compatible JSON to /paperclip (Docker volume, persists)
-eval "$DOCKER exec $CONTAINER node -e \"
-const fs = require('fs');
-const cfg = {
-  skipDangerousModePermissionPrompt: true,
-  mcpServers: {
-    'paperclip-plugins': {
-      type: 'stdio',
-      command: '/usr/local/bin/node',
-      args: ['$PROXY_PATH/index.js'],
-      env: {
-        PC_HOST: '$PC_HOST_INTERNAL',
-        PC_EMAIL: '$PC_EMAIL',
-        PC_PASSWORD: process.env.PC_PW,
-        PC_COMPANY_ID: '$PC_COMPANY_ID'
+# Build config JSON locally then pipe it into the container via tee
+MCP_JSON=$(cat <<MCPEOF
+{
+  "skipDangerousModePermissionPrompt": true,
+  "mcpServers": {
+    "paperclip-plugins": {
+      "type": "stdio",
+      "command": "/usr/local/bin/node",
+      "args": ["$PROXY_PATH/index.js"],
+      "env": {
+        "PC_HOST": "$PC_HOST_INTERNAL",
+        "PC_EMAIL": "$PC_EMAIL",
+        "PC_PASSWORD": "$PC_PASSWORD",
+        "PC_COMPANY_ID": "$PC_COMPANY_ID"
       }
     }
   }
-};
-fs.writeFileSync('$MCP_CONFIG_PATH', JSON.stringify(cfg, null, 2));
-console.log('Written: $MCP_CONFIG_PATH');
-\" PC_PW='$PC_PASSWORD'"
+}
+MCPEOF
+)
+echo "$MCP_JSON" | eval "$DOCKER exec -i $CONTAINER tee $MCP_CONFIG_PATH" > /dev/null
+echo "Written: $MCP_CONFIG_PATH"
 
 echo ""
 echo "=== Step 3: Verify proxy starts inside container ==="

@@ -73,27 +73,28 @@ info "Proxy installed at $PROXY_PATH"
 # ── step 3: write MCP config to /paperclip volume ────────────────────────────
 
 info "Writing MCP config to $MCP_CONFIG_PATH..."
-ssh "$SSH_HOST" "PC_PW='$PC_PASSWORD' $DOCKER exec -e PC_PW \$PC_PW $CONTAINER node -e \"
-const fs = require('fs');
-const cfg = {
-  skipDangerousModePermissionPrompt: true,
-  mcpServers: {
-    'paperclip-plugins': {
-      type: 'stdio',
-      command: '/usr/local/bin/node',
-      args: ['$PROXY_PATH/index.js'],
-      env: {
-        PC_HOST: '$PC_HOST_INTERNAL',
-        PC_EMAIL: '$PC_EMAIL',
-        PC_PASSWORD: process.env.PC_PW,
-        PC_COMPANY_ID: '$PC_COMPANY_ID'
+# Build JSON locally, pipe into container via ssh+tee (avoids Node require/ESM issues)
+MCP_JSON=$(cat <<MCPEOF
+{
+  "skipDangerousModePermissionPrompt": true,
+  "mcpServers": {
+    "paperclip-plugins": {
+      "type": "stdio",
+      "command": "/usr/local/bin/node",
+      "args": ["$PROXY_PATH/index.js"],
+      "env": {
+        "PC_HOST": "$PC_HOST_INTERNAL",
+        "PC_EMAIL": "$PC_EMAIL",
+        "PC_PASSWORD": "$PC_PASSWORD",
+        "PC_COMPANY_ID": "$PC_COMPANY_ID"
       }
     }
   }
-};
-fs.writeFileSync('$MCP_CONFIG_PATH', JSON.stringify(cfg, null, 2));
-console.log('Written:', '$MCP_CONFIG_PATH');
-\""
+}
+MCPEOF
+)
+echo "$MCP_JSON" | ssh "$SSH_HOST" "$DOCKER exec -i $CONTAINER tee $MCP_CONFIG_PATH" > /dev/null
+info "Written: $MCP_CONFIG_PATH"
 
 # ── step 4: verify proxy starts ───────────────────────────────────────────────
 
