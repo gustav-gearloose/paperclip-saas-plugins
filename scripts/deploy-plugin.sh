@@ -96,14 +96,14 @@ cp "$PLUGIN_DIR/package.json" "$STAGING/"
 
 # Fix dist/ references in manifest.js and package.json
 python3 - "$STAGING" <<'PYEOF'
-import pathlib, sys
+import pathlib, sys, re
 staging = pathlib.Path(sys.argv[1])
 for f in staging.glob("*.js"):
     txt = f.read_text()
-    fixed = txt.replace("./dist/worker.js", "./worker.js") \
-               .replace("./dist/manifest.js", "./manifest.js") \
-               .replace("./dist/email-client.js", "./email-client.js") \
-               .replace("./dist/dinero-client.js", "./dinero-client.js")
+    # Strip any ./dist/ prefix from relative imports
+    fixed = re.sub(r'"\./dist/([^"]+)"', r'"\./\1"', txt)
+    fixed = fixed.replace("./dist/worker.js", "./worker.js") \
+                 .replace("./dist/manifest.js", "./manifest.js")
     f.write_text(fixed)
 for f in staging.glob("*.json"):
     txt = f.read_text()
