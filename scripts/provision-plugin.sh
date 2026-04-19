@@ -93,10 +93,17 @@ existing = json.load(open(cust_path)) if os.path.isfile(cust_path) else {}
 
 config = {**deploy.get('configJson', {}), **existing.get('configJson', {})}
 
-# Apply PLUGIN_CONFIG_* overrides
+# Apply PLUGIN_CONFIG_* overrides (coerce numeric strings to int/float)
 for k, v in env.items():
     if k.startswith('PLUGIN_CONFIG_'):
-        config[k[len('PLUGIN_CONFIG_'):]] = v
+        key_name = k[len('PLUGIN_CONFIG_'):]
+        try:
+            config[key_name] = int(v)
+        except ValueError:
+            try:
+                config[key_name] = float(v)
+            except ValueError:
+                config[key_name] = v
 
 refs_out = {}
 for key, spec in deploy.get('secretRefs', {}).items():

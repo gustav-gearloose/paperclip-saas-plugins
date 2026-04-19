@@ -38,9 +38,9 @@ const plugin = definePlugin({
       emailUser,
       password,
       imapHost,
-      imapPort: imapPort ?? 993,
+      imapPort: Number(imapPort ?? 993),
       smtpHost,
-      smtpPort: smtpPort ?? 465,
+      smtpPort: Number(smtpPort ?? 465),
       displayName,
     });
 
