@@ -36,7 +36,8 @@ set +a
 
 CONTAINER="${CONTAINER:-paperclip-deploy-paperclip-1}"
 SSH_HOST="${SSH_HOST:?SSH_HOST not set in $ENV_FILE}"
-PC_HOST="${PC_HOST:?PC_HOST not set in $ENV_FILE}"
+PC_HOST="${PC_HOST:?PC_HOST not set in $ENV_FILE}"        # external, used by this script
+PC_HOST_INTERNAL="http://localhost:3100"                   # used by proxy inside container
 PC_EMAIL="${PC_EMAIL:?PC_EMAIL not set in $ENV_FILE}"
 PC_COMPANY_ID="${PC_COMPANY_ID:?PC_COMPANY_ID not set in $ENV_FILE}"
 DOCKER="DOCKER_HOST=unix:///var/run/docker.sock docker"
@@ -82,7 +83,7 @@ const cfg = {
       command: '/usr/local/bin/node',
       args: ['$PROXY_PATH/index.js'],
       env: {
-        PC_HOST: '$PC_HOST',
+        PC_HOST: '$PC_HOST_INTERNAL',
         PC_EMAIL: '$PC_EMAIL',
         PC_PASSWORD: process.env.PC_PW,
         PC_COMPANY_ID: '$PC_COMPANY_ID'
@@ -98,7 +99,7 @@ console.log('Written:', '$MCP_CONFIG_PATH');
 
 info "Verifying proxy starts inside container..."
 ssh "$SSH_HOST" "PC_PW='$PC_PASSWORD' $DOCKER exec \
-  -e PC_HOST=$PC_HOST \
+  -e PC_HOST=$PC_HOST_INTERNAL \
   -e PC_EMAIL=$PC_EMAIL \
   -e PC_PASSWORD=\$PC_PW \
   -e PC_COMPANY_ID=$PC_COMPANY_ID \

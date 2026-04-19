@@ -8,7 +8,8 @@ set -euo pipefail
 
 CONTAINER="paperclip-deploy-paperclip-1"
 DOCKER="DOCKER_HOST=unix:///var/run/docker.sock docker"
-PC_HOST="http://100.66.0.88:3100"
+PC_HOST="http://100.66.0.88:3100"          # used by this script (external, from NUC host)
+PC_HOST_INTERNAL="http://localhost:3100"   # used by proxy inside container
 PC_EMAIL="gustav@gearloose.dk"
 PC_COMPANY_ID="df675b10-abcb-43e1-9a0c-69a88ccf705c"
 CFO_AGENT_ID="c1f1e634-24fe-4e40-b293-3bdc3ef7f8a0"
@@ -44,7 +45,7 @@ const cfg = {
       command: '/usr/local/bin/node',
       args: ['$PROXY_PATH/index.js'],
       env: {
-        PC_HOST: '$PC_HOST',
+        PC_HOST: '$PC_HOST_INTERNAL',
         PC_EMAIL: '$PC_EMAIL',
         PC_PASSWORD: process.env.PC_PW,
         PC_COMPANY_ID: '$PC_COMPANY_ID'
@@ -58,7 +59,7 @@ console.log('Written: $MCP_CONFIG_PATH');
 
 echo ""
 echo "=== Step 3: Verify proxy starts inside container ==="
-eval "$DOCKER exec -e PC_HOST=$PC_HOST -e PC_EMAIL=$PC_EMAIL -e PC_PASSWORD=$PC_PASSWORD -e PC_COMPANY_ID=$PC_COMPANY_ID $CONTAINER timeout 6 node $PROXY_PATH/index.js 2>&1" || true
+eval "$DOCKER exec -e PC_HOST=$PC_HOST_INTERNAL -e PC_EMAIL=$PC_EMAIL -e PC_PASSWORD=$PC_PASSWORD -e PC_COMPANY_ID=$PC_COMPANY_ID $CONTAINER timeout 6 node $PROXY_PATH/index.js 2>&1" || true
 
 echo ""
 echo "=== Step 4: Authenticate with Paperclip API ==="
