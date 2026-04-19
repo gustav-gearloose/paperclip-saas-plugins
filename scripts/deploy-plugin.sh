@@ -175,7 +175,7 @@ for key, s in refs.items():
 ")
   while IFS=$'\t' read -r key uuid name value; do
     [[ -z "$key" ]] && continue
-    if [[ -n "$uuid" ]]; then
+    if [[ -n "$uuid" && "$uuid" != REPLACE_WITH* && "$uuid" != PENDING* ]]; then
       echo "$key=$uuid" >> "$SECRET_UUIDS_FILE"
       info "Reusing existing secret $key → $uuid"
     else
@@ -252,9 +252,10 @@ PYEOF2
   info "Restarting worker with new config..."
   pc_curl "-X DELETE '$PC_HOST/api/plugins/$PLUGIN_ID?purge=false'" > /dev/null
   sleep 1
-  pc_curl_post "/api/plugins/install" \
-    "-d '{\"packageName\":\"$CONTAINER_PATH\",\"isLocalPath\":true}'" \
-    | python3 -c "import sys,json; d=json.load(sys.stdin); print('restart status:', d.get('status'), d.get('lastError') or '')"
+  RESTART_RESULT=$(pc_curl_post "/api/plugins/install" \
+    "-d '{\"packageName\":\"$CONTAINER_PATH\",\"isLocalPath\":true}'")
+  PLUGIN_ID=$(echo "$RESTART_RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id', ''))" 2>/dev/null || echo "$PLUGIN_ID")
+  echo "$RESTART_RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print('restart status:', d.get('status'), d.get('lastError') or '')"
 fi
 
 # ── done ─────────────────────────────────────────────────────────────────────

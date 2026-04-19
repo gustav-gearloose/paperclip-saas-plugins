@@ -110,16 +110,16 @@ declare_smoke_tool() {
 }
 
 SMOKE_TOOLS=(
-  "dinero|dinero:list_contacts|{\"first\":1}"
-  "billy|billy:list_contacts|{\"per_page\":1}"
-  "economic|economic:list_accounts|{\"skippages\":0,\"pagesize\":1}"
-  "zendesk|zendesk:list_tickets|{\"per_page\":1}"
-  "hubspot|hubspot:list_contacts|{\"limit\":1}"
-  "slack|slack:list_channels|{\"limit\":1}"
-  "google-sheets|google_sheets:sheets_get_spreadsheet_info|{\"spreadsheet_id\":\"test\"}"
-  "notion|notion:notion_search|{\"query\":\"test\",\"page_size\":1}"
-  "linear|linear:linear_list_teams|{}"
-  "email|email:email_list_folders|{}"
+  "dinero|dinero_list_contacts|{}"
+  "billy|billy_list_contacts|{}"
+  "economic|economic_list_accounts|{}"
+  "zendesk|zendesk_list_tickets|{\"page_size\":1}"
+  "hubspot|hubspot_search_contacts|{\"limit\":1}"
+  "slack|slack_list_channels|{}"
+  "google-sheets|sheets_get_spreadsheet_info|{\"spreadsheet_id\":\"placeholder\"}"
+  "notion|notion_search|{\"query\":\"\"}"
+  "linear|linear_list_teams|{}"
+  "email|email_list_folders|{}"
 )
 
 while IFS=$'\t' read -r plugin_id display_name status plugin_key; do
@@ -148,16 +148,8 @@ while IFS=$'\t' read -r plugin_id display_name status plugin_key; do
     tname="${rest%%|*}"
     tparams="${rest#*|}"
     if echo "$plugin_key" | grep -qi "$pattern"; then
-      # Build fully-qualified tool name: pluginKey:toolName
-      # The plugin key is like "gearloose.dinero", tool is "dinero:list_contacts"
-      # but execute API uses "pluginKey:toolName" where toolName is the registered name
-      # Extract just the tool suffix (after the colon if present)
-      if echo "$tname" | grep -q ":"; then
-        TOOL_SUFFIX="${tname#*:}"
-      else
-        TOOL_SUFFIX="$tname"
-      fi
-      TOOL_NAME="${plugin_key}:${TOOL_SUFFIX}"
+      # Execute API: "pluginKey:toolName" e.g. "gearloose.dinero:dinero_list_contacts"
+      TOOL_NAME="${plugin_key}:${tname}"
       TOOL_PARAMS="$tparams"
       break
     fi
