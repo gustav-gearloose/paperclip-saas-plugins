@@ -1,0 +1,233 @@
+import { definePlugin, runWorker } from "@paperclipai/plugin-sdk";
+import type { ToolResult } from "@paperclipai/plugin-sdk";
+import { HubSpotClient } from "./hubspot-client.js";
+
+interface HubSpotPluginConfig {
+  accessTokenRef?: string;
+}
+
+function errResult(err: unknown): ToolResult {
+  return { error: err instanceof Error ? err.message : String(err) };
+}
+
+const plugin = definePlugin({
+  async setup(ctx) {
+    const config = await ctx.config.get() as HubSpotPluginConfig;
+    const { accessTokenRef } = config;
+
+    if (!accessTokenRef) {
+      ctx.logger.error("HubSpot plugin: accessTokenRef is required");
+      return;
+    }
+
+    let accessToken: string;
+    try {
+      accessToken = await ctx.secrets.resolve(accessTokenRef);
+    } catch (err) {
+      ctx.logger.error(`HubSpot plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`);
+      return;
+    }
+
+    const client = new HubSpotClient(accessToken);
+    ctx.logger.info("HubSpot plugin: registering tools");
+
+    ctx.tools.register(
+      "hubspot_search_contacts",
+      {
+        displayName: "Search Contacts",
+        description: "Search HubSpot contacts by name, email, or free-text query.",
+        parametersSchema: {
+          type: "object",
+          properties: {
+            query: { type: "string" },
+            email: { type: "string" },
+            limit: { type: "integer" },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.searchContacts({
+            query: p.query as string | undefined,
+            email: p.email as string | undefined,
+            limit: p.limit as number | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "hubspot_get_contact",
+      {
+        displayName: "Get Contact",
+        description: "Get full details of a HubSpot contact by contact ID.",
+        parametersSchema: {
+          type: "object",
+          required: ["contact_id"],
+          properties: { contact_id: { type: "string" } },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.getContact(p.contact_id as string);
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "hubspot_search_companies",
+      {
+        displayName: "Search Companies",
+        description: "Search HubSpot companies by name or free-text query.",
+        parametersSchema: {
+          type: "object",
+          properties: {
+            query: { type: "string" },
+            name: { type: "string" },
+            limit: { type: "integer" },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.searchCompanies({
+            query: p.query as string | undefined,
+            name: p.name as string | undefined,
+            limit: p.limit as number | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "hubspot_get_company",
+      {
+        displayName: "Get Company",
+        description: "Get full details of a HubSpot company by company ID.",
+        parametersSchema: {
+          type: "object",
+          required: ["company_id"],
+          properties: { company_id: { type: "string" } },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.getCompany(p.company_id as string);
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "hubspot_search_deals",
+      {
+        displayName: "Search Deals",
+        description: "Search HubSpot deals by name, deal stage, or free-text query.",
+        parametersSchema: {
+          type: "object",
+          properties: {
+            query: { type: "string" },
+            stage: { type: "string" },
+            limit: { type: "integer" },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.searchDeals({
+            query: p.query as string | undefined,
+            stage: p.stage as string | undefined,
+            limit: p.limit as number | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "hubspot_get_deal",
+      {
+        displayName: "Get Deal",
+        description: "Get full details of a HubSpot deal by deal ID.",
+        parametersSchema: {
+          type: "object",
+          required: ["deal_id"],
+          properties: { deal_id: { type: "string" } },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.getDeal(p.deal_id as string);
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "hubspot_list_recent_deals",
+      {
+        displayName: "List Recent Deals",
+        description: "List the most recent HubSpot deals sorted by close date.",
+        parametersSchema: {
+          type: "object",
+          properties: { limit: { type: "integer" } },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.listDeals({ limit: p.limit as number | undefined });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "hubspot_create_note",
+      {
+        displayName: "Create Note",
+        description: "Create a note in HubSpot and optionally associate it with a contact, deal, or company.",
+        parametersSchema: {
+          type: "object",
+          required: ["body"],
+          properties: {
+            body: { type: "string" },
+            contact_id: { type: "string" },
+            deal_id: { type: "string" },
+            company_id: { type: "string" },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.createNote({
+            body: p.body as string,
+            contactId: p.contact_id as string | undefined,
+            dealId: p.deal_id as string | undefined,
+            companyId: p.company_id as string | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("HubSpot plugin ready — 8 tools registered");
+  },
+
+  async onHealth() {
+    return { status: "ok", message: "HubSpot CRM plugin running" };
+  },
+});
+
+export default plugin;
+runWorker(plugin, import.meta.url);
