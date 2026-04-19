@@ -1,0 +1,17 @@
+{
+  "name": "@gearloose/paperclip-plugin-dinero",
+  "version": "0.1.0",
+  "description": "Dinero accounting integration for Paperclip AI",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "paperclipPlugin": {
+    "manifest": "./dist/manifest.js",
+    "worker": "./dist/worker.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

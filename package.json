@@ -1,0 +1,6 @@
+{
+  "name": "paperclip-saas-plugins",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "packageManager": "pnpm@9.0.0"
+}
