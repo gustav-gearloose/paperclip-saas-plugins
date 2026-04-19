@@ -239,7 +239,35 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("Slack plugin ready — 8 tools registered");
+    ctx.tools.register(
+      "slack_add_reaction",
+      {
+        displayName: "Add Reaction",
+        description: "Add an emoji reaction to a Slack message.",
+        parametersSchema: {
+          type: "object",
+          required: ["channel", "timestamp", "emoji"],
+          properties: {
+            channel: { type: "string", description: "Channel ID or name." },
+            timestamp: { type: "string", description: "Message timestamp (ts field from message)." },
+            emoji: { type: "string", description: "Emoji name without colons, e.g. 'white_check_mark', 'eyes', 'thumbsup'." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.addReaction(
+            p.channel as string,
+            p.timestamp as string,
+            p.emoji as string,
+          );
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("Slack plugin ready — 9 tools registered");
   },
 
   async onHealth() {

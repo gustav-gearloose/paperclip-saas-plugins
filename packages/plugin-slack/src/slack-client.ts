@@ -73,6 +73,10 @@ export class SlackClient {
     return this.call("users.info", { user: userId });
   }
 
+  async addReaction(channel: string, timestamp: string, name: string): Promise<SlackResponse> {
+    return this.call("reactions.add", { channel, timestamp, name });
+  }
+
   async uploadFile(channels: string, filename: string, content: string, title?: string): Promise<SlackResponse> {
     const byteLength = new TextEncoder().encode(content).length;
     return this.call("files.getUploadURLExternal", { filename, length: byteLength }).then(async (urlResp) => {

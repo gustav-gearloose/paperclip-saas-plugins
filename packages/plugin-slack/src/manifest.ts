@@ -137,6 +137,20 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "slack_add_reaction",
+      displayName: "Add Reaction",
+      description: "Add an emoji reaction to a Slack message.",
+      parametersSchema: {
+        type: "object",
+        required: ["channel", "timestamp", "emoji"],
+        properties: {
+          channel: { type: "string", description: "Channel ID or name." },
+          timestamp: { type: "string", description: "Message timestamp (ts field from message)." },
+          emoji: { type: "string", description: "Emoji name without colons, e.g. 'white_check_mark', 'thumbsup'." },
+        },
+      },
+    },
   ],
 };
 
