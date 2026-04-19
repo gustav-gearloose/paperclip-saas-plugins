@@ -126,6 +126,72 @@ const manifest: PaperclipPluginManifestV1 = {
       description: "Get information about the connected e-conomic account and company.",
       parametersSchema: { type: "object", properties: {} },
     },
+    {
+      name: "economic_create_draft_invoice",
+      displayName: "Create Draft Invoice",
+      description: "Create a new draft invoice in e-conomic.",
+      parametersSchema: {
+        type: "object",
+        required: ["customer_number", "date", "currency", "payment_terms_number", "recipient_name", "lines"],
+        properties: {
+          customer_number: { type: "integer", description: "e-conomic customer number." },
+          date: { type: "string", description: "Invoice date (YYYY-MM-DD)." },
+          currency: { type: "string", description: "ISO currency code, e.g. DKK." },
+          payment_terms_number: { type: "integer", description: "e-conomic payment terms number." },
+          recipient_name: { type: "string", description: "Recipient name on invoice." },
+          recipient_address: { type: "string" },
+          recipient_city: { type: "string" },
+          recipient_zip: { type: "string" },
+          lines: {
+            type: "array",
+            description: "Invoice lines.",
+            items: {
+              type: "object",
+              required: ["description", "quantity", "unit_net_price"],
+              properties: {
+                product_number: { type: "string" },
+                description: { type: "string" },
+                quantity: { type: "number" },
+                unit_net_price: { type: "number" },
+              },
+            },
+          },
+        },
+      },
+    },
+    {
+      name: "economic_list_journal_entries",
+      displayName: "List Journal Entries",
+      description: "List journal voucher entries from e-conomic.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          journal_number: { type: "integer", description: "Specific journal number to fetch entries from. Omit to list all journals." },
+          page_size: { type: "integer" },
+        },
+      },
+    },
+    {
+      name: "economic_create_customer",
+      displayName: "Create Customer",
+      description: "Create a new customer in e-conomic.",
+      parametersSchema: {
+        type: "object",
+        required: ["name", "customer_group_number"],
+        properties: {
+          name: { type: "string", description: "Customer name." },
+          customer_group_number: { type: "integer", description: "e-conomic customer group number." },
+          currency: { type: "string", description: "ISO currency code (default DKK)." },
+          payment_terms_number: { type: "integer", description: "Payment terms number (default 14)." },
+          address: { type: "string" },
+          city: { type: "string" },
+          zip: { type: "string" },
+          country: { type: "string" },
+          email: { type: "string" },
+          phone: { type: "string" },
+        },
+      },
+    },
   ],
 };
 

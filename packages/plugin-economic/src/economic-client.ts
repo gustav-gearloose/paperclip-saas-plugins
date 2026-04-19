@@ -99,4 +99,81 @@ export class EconomicClient {
   async getCompanyInfo(): Promise<unknown> {
     return this.get("/self");
   }
+
+  async createDraftInvoice(invoice: {
+    customer: { customerNumber: number };
+    date: string;
+    currency: string;
+    paymentTerms: { paymentTermsNumber: number };
+    recipient: { name: string; address?: string; city?: string; zip?: string; country?: string };
+    lines: Array<{
+      lineNumber?: number;
+      product?: { productNumber: string };
+      description: string;
+      quantity: number;
+      unitNetPrice: number;
+    }>;
+  }): Promise<unknown> {
+    const resp = await fetch(`${BASE}/invoices/drafts`, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify(invoice),
+    });
+    if (!resp.ok) {
+      throw new Error(`e-conomic API ${resp.status} POST /invoices/drafts: ${await resp.text()}`);
+    }
+    return resp.json();
+  }
+
+  async createCustomer(customer: {
+    name: string;
+    customerGroupNumber: number;
+    currency?: string;
+    paymentTermsNumber?: number;
+    address?: string;
+    city?: string;
+    zip?: string;
+    country?: string;
+    email?: string;
+    phone?: string;
+    vatZone?: { vatZoneNumber: number };
+  }): Promise<unknown> {
+    const body: Record<string, unknown> = {
+      name: customer.name,
+      customerGroup: { customerGroupNumber: customer.customerGroupNumber },
+      currency: customer.currency ?? "DKK",
+      paymentTerms: { paymentTermsNumber: customer.paymentTermsNumber ?? 14 },
+      vatZone: customer.vatZone ?? { vatZoneNumber: 1 },
+    };
+    if (customer.address) body["address"] = customer.address;
+    if (customer.city) body["city"] = customer.city;
+    if (customer.zip) body["zip"] = customer.zip;
+    if (customer.country) body["country"] = customer.country;
+    if (customer.email) body["email"] = customer.email;
+    if (customer.phone) body["telephoneAndFaxNumber"] = customer.phone;
+
+    const resp = await fetch(`${BASE}/customers`, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      throw new Error(`e-conomic API ${resp.status} POST /customers: ${await resp.text()}`);
+    }
+    return resp.json();
+  }
+
+  async listJournalEntries(opts?: { pageSize?: number; skipPages?: number }): Promise<unknown> {
+    return this.get("/journals/paged", {
+      pagesize: opts?.pageSize ?? 50,
+      skippages: opts?.skipPages ?? 0,
+    });
+  }
+
+  async getJournalEntries(journalNumber: number, opts?: { pageSize?: number }): Promise<unknown> {
+    return this.get(`/journals/${journalNumber}/entries/paged`, {
+      pagesize: opts?.pageSize ?? 100,
+      skippages: 0,
+    });
+  }
 }
