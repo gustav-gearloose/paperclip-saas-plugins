@@ -133,6 +133,44 @@ export class DineroClient {
     return this.request(`/products?${qs}`);
   }
 
+  // ── Create Invoice ────────────────────────────────────────────────────────
+
+  async createInvoice(invoice: {
+    contactGuid: string;
+    date: string;
+    currency?: string;
+    paymentConditionNumberOfDays?: number;
+    lines: Array<{
+      productGuid?: string;
+      description: string;
+      quantity: number;
+      unit?: string;
+      accountNumber?: number;
+      baseAmountExclVat: number;
+    }>;
+  }): Promise<unknown> {
+    const body = {
+      ContactGuid: invoice.contactGuid,
+      Date: invoice.date,
+      Currency: invoice.currency ?? "DKK",
+      ...(invoice.paymentConditionNumberOfDays !== undefined
+        ? { PaymentConditions: "Netto", PaymentConditionNumberOfDays: invoice.paymentConditionNumberOfDays }
+        : {}),
+      ProductLines: invoice.lines.map((l) => ({
+        ...(l.productGuid ? { ProductGuid: l.productGuid } : {}),
+        Description: l.description,
+        Quantity: l.quantity,
+        Unit: l.unit ?? "parts",
+        ...(l.accountNumber ? { AccountNumber: l.accountNumber } : {}),
+        BaseAmountExclVat: l.baseAmountExclVat,
+      })),
+    };
+    return this.request("/sales/invoices", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
   // ── Financial Summary (composite) ─────────────────────────────────────────
 
   async getFinancialSummary(fiscalYear?: number): Promise<unknown> {

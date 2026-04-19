@@ -262,7 +262,62 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("Dinero plugin ready — 8 tools registered");
+    ctx.tools.register(
+      "dinero_create_invoice",
+      {
+        displayName: "Create Invoice",
+        description: "Create a new draft invoice in Dinero.",
+        parametersSchema: {
+          type: "object",
+          required: ["contact_guid", "date", "lines"],
+          properties: {
+            contact_guid: { type: "string", description: "Dinero contact GUID." },
+            date: { type: "string", description: "Invoice date (YYYY-MM-DD)." },
+            currency: { type: "string", description: "ISO currency code. Default: DKK." },
+            payment_days: { type: "integer", description: "Net payment days (e.g. 14, 30)." },
+            lines: {
+              type: "array",
+              description: "Invoice product lines.",
+              items: {
+                type: "object",
+                required: ["description", "quantity", "base_amount_excl_vat"],
+                properties: {
+                  product_guid: { type: "string" },
+                  description: { type: "string" },
+                  quantity: { type: "number" },
+                  unit: { type: "string", description: "Unit label, e.g. 'parts', 'hours'." },
+                  account_number: { type: "integer" },
+                  base_amount_excl_vat: { type: "number", description: "Unit price excl. VAT." },
+                },
+              },
+            },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const lines = (p.lines as Array<Record<string, unknown>>).map((l) => ({
+            productGuid: l.product_guid as string | undefined,
+            description: l.description as string,
+            quantity: l.quantity as number,
+            unit: l.unit as string | undefined,
+            accountNumber: l.account_number as number | undefined,
+            baseAmountExclVat: l.base_amount_excl_vat as number,
+          }));
+          const data = await client.createInvoice({
+            contactGuid: p.contact_guid as string,
+            date: p.date as string,
+            currency: p.currency as string | undefined,
+            paymentConditionNumberOfDays: p.payment_days as number | undefined,
+            lines,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("Dinero plugin ready — 9 tools registered");
   },
 
   async onHealth() {

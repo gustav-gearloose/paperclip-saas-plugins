@@ -146,6 +146,37 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "dinero_create_invoice",
+      displayName: "Create Invoice",
+      description: "Create a new draft invoice in Dinero.",
+      parametersSchema: {
+        type: "object",
+        required: ["contact_guid", "date", "lines"],
+        properties: {
+          contact_guid: { type: "string", description: "Dinero contact GUID." },
+          date: { type: "string", description: "Invoice date (YYYY-MM-DD)." },
+          currency: { type: "string", description: "ISO currency code. Default: DKK." },
+          payment_days: { type: "integer", description: "Net payment days (e.g. 14, 30)." },
+          lines: {
+            type: "array",
+            description: "Invoice product lines.",
+            items: {
+              type: "object",
+              required: ["description", "quantity", "base_amount_excl_vat"],
+              properties: {
+                product_guid: { type: "string" },
+                description: { type: "string" },
+                quantity: { type: "number" },
+                unit: { type: "string", description: "Unit label, e.g. 'parts', 'hours'." },
+                account_number: { type: "integer" },
+                base_amount_excl_vat: { type: "number", description: "Unit price excl. VAT." },
+              },
+            },
+          },
+        },
+      },
+    },
   ],
 };
 
