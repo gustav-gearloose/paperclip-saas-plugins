@@ -344,7 +344,57 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("HubSpot plugin ready — 12 tools registered");
+    ctx.tools.register(
+      "hubspot_list_companies",
+      {
+        displayName: "List Companies",
+        description: "List HubSpot companies with optional pagination.",
+        parametersSchema: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Max results (default 20)." },
+            after: { type: "string", description: "Pagination cursor from previous response." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.listCompanies({
+            limit: p.limit as number | undefined,
+            after: p.after as string | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "hubspot_list_notes",
+      {
+        displayName: "List Notes",
+        description: "List HubSpot notes (engagement notes attached to contacts, deals, or companies).",
+        parametersSchema: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Max results (default 20)." },
+            after: { type: "string", description: "Pagination cursor from previous response." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.listNotes({
+            limit: p.limit as number | undefined,
+            after: p.after as string | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("HubSpot plugin ready — 14 tools registered");
   },
 
   async onHealth() {

@@ -201,6 +201,30 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "hubspot_list_companies",
+      displayName: "List Companies",
+      description: "List HubSpot companies with optional pagination.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          limit: { type: "integer", description: "Max results (default 20)." },
+          after: { type: "string", description: "Pagination cursor from previous response." },
+        },
+      },
+    },
+    {
+      name: "hubspot_list_notes",
+      displayName: "List Notes",
+      description: "List HubSpot notes (engagement notes attached to contacts, deals, or companies).",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          limit: { type: "integer", description: "Max results (default 20)." },
+          after: { type: "string", description: "Pagination cursor from previous response." },
+        },
+      },
+    },
   ],
 };
 
