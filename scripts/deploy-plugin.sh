@@ -148,14 +148,24 @@ ssh "$SSH_HOST" "curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
 # secretRefs format:
 #   {"key": {"name": "secret-name", "value": "actual-value"}}  → creates new secret
 #   {"key": {"uuid": "existing-uuid"}}                          → reuses existing secret UUID
+#
+# PC_CUSTOMER_CONFIG may point to a customer-specific JSON that deep-merges
+# over deploy-config.json (for per-customer org IDs, secret UUIDs, etc.)
 
 DEPLOY_CONFIG="$PLUGIN_DIR/deploy-config.json"
+CUSTOMER_CONFIG="${PC_CUSTOMER_CONFIG:-}"
 
 if [[ -f "$DEPLOY_CONFIG" ]]; then
   info "Processing deploy-config.json secrets..."
   SECRET_REFS=$(python3 -c "
-import json, sys
+import json, sys, os
 cfg = json.load(open('$DEPLOY_CONFIG'))
+# Merge customer-specific overrides if provided
+cust = os.environ.get('PC_CUSTOMER_CONFIG', '')
+if cust and os.path.isfile(cust):
+    overlay = json.load(open(cust))
+    cfg.get('configJson', {}).update(overlay.get('configJson', {}))
+    cfg.get('secretRefs', {}).update(overlay.get('secretRefs', {}))
 refs = cfg.get('secretRefs', {})
 for key, s in refs.items():
     uuid = s.get('uuid', '')
@@ -215,10 +225,16 @@ info "Installed: $PLUGIN_ID (status=$STATUS)"
 
 if [[ -f "$DEPLOY_CONFIG" ]]; then
   info "Setting plugin config..."
-  CONFIG_JSON=$(python3 - "$DEPLOY_CONFIG" "$SECRET_UUIDS_FILE" <<'PYEOF2'
-import json, sys
+  CONFIG_JSON=$(PC_CUSTOMER_CONFIG="$CUSTOMER_CONFIG" python3 - "$DEPLOY_CONFIG" "$SECRET_UUIDS_FILE" <<'PYEOF2'
+import json, sys, os
 cfg = json.load(open(sys.argv[1]))
 config = cfg.get("configJson", {})
+# Apply customer config overlay
+cust = os.environ.get('PC_CUSTOMER_CONFIG', '')
+if cust and os.path.isfile(cust):
+    overlay = json.load(open(cust))
+    config.update(overlay.get("configJson", {}))
+# Inject resolved secret UUIDs
 with open(sys.argv[2]) as f:
     for line in f:
         line = line.strip()

@@ -32,4 +32,12 @@ source "$ENV_FILE"
 [[ -f "$SECRETS_FILE" ]] && source "$SECRETS_FILE"
 set +a
 
+# Auto-detect per-customer plugin config override
+PLUGIN_SLUG=$(basename "$PLUGIN_DIR")
+CUSTOMER_PLUGIN_CONFIG="$REPO_ROOT/customers/$CUSTOMER/${PLUGIN_SLUG}.json"
+if [[ -f "$CUSTOMER_PLUGIN_CONFIG" ]]; then
+  export PC_CUSTOMER_CONFIG="$CUSTOMER_PLUGIN_CONFIG"
+  echo "→ Using customer plugin override: $CUSTOMER_PLUGIN_CONFIG"
+fi
+
 exec "$SCRIPT_DIR/deploy-plugin.sh" "$PLUGIN_DIR"

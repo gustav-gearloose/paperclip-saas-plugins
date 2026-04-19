@@ -66,6 +66,71 @@ const manifest: PaperclipPluginManifestV1 = {
       },
     },
   },
+  tools: [
+    {
+      name: "email_list_folders",
+      displayName: "List Email Folders",
+      description: "List all IMAP folders/mailboxes in the email account.",
+      parametersSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "email_search",
+      displayName: "Search Emails",
+      description: "Search emails in a folder. Returns subject, from, date, and read status. Use email_get to fetch the full body.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          folder: { type: "string", description: "Folder to search (default: INBOX)." },
+          query: { type: "string", description: "Search by subject keyword." },
+          from: { type: "string", description: "Filter by sender address." },
+          unseen: { type: "boolean", description: "Only return unread emails." },
+          since: { type: "string", description: "Only emails since this date (YYYY-MM-DD)." },
+          limit: { type: "integer", description: "Max results (default 20, max 50)." },
+        },
+      },
+    },
+    {
+      name: "email_get",
+      displayName: "Get Email",
+      description: "Fetch the full content of a specific email by UID (from email_search results).",
+      parametersSchema: {
+        type: "object",
+        required: ["uid"],
+        properties: {
+          uid: { type: "integer", description: "Email UID from search results." },
+          folder: { type: "string", description: "Folder containing the email (default: INBOX)." },
+        },
+      },
+    },
+    {
+      name: "email_send",
+      displayName: "Send Email",
+      description: "Compose and send an email via SMTP.",
+      parametersSchema: {
+        type: "object",
+        required: ["to", "subject", "text"],
+        properties: {
+          to: { type: "string", description: "Recipient email address." },
+          subject: { type: "string", description: "Email subject line." },
+          text: { type: "string", description: "Plain text body of the email." },
+          html: { type: "string", description: "Optional HTML body (falls back to text if omitted)." },
+        },
+      },
+    },
+    {
+      name: "email_mark_seen",
+      displayName: "Mark Email as Read",
+      description: "Mark an email as read/seen by UID.",
+      parametersSchema: {
+        type: "object",
+        required: ["uid"],
+        properties: {
+          uid: { type: "integer", description: "Email UID to mark as read." },
+          folder: { type: "string", description: "Folder containing the email (default: INBOX)." },
+        },
+      },
+    },
+  ],
 };
 
 export default manifest;
