@@ -67,7 +67,11 @@ const manifest: PaperclipPluginManifestV1 = {
 **Key constraints:**
 - `apiVersion` must be the number `1`, not the string `"1"`
 - `capabilities` must be a non-empty array of strings from Paperclip's `PLUGIN_CAPABILITIES` enum
-- Tools are NOT declared in the manifest — they are registered at runtime via `ctx.tools.register()`
+- **Tools MUST be declared in BOTH places** (discovered from manifest at activation + invoked from worker at runtime):
+  1. In the manifest `tools[]` array (static declarations — host reads these at install time)
+  2. In the worker via `ctx.tools.register()` (invocation handlers — called when a tool executes)
+
+> **Critical:** If `tools[]` is omitted from the manifest, the host registers `0` tools at activation and agents cannot call any tools — even though the worker registers them. The manifest is the source of truth for tool *discovery*; the worker handles *invocation*.
 
 ---
 
@@ -402,3 +406,200 @@ configJson field overrides: `PLUGIN_CONFIG_<fieldname>=<value>` (e.g. `PLUGIN_CO
 - **Path versioning**: `deploy-plugin.sh` auto-increments container path (`/paperclip-email-v1`, `-v2`, ...) on each deploy. Node's module cache is keyed by path, so this forces fresh imports.
 - **Secret UUIDs ≠ secret values**: Safe to commit `customers/<slug>/<plugin>.json` — the UUIDs are opaque references, not the actual credentials.
 - **SDK symlink**: `deploy-plugin.sh` always symlinks `@paperclipai/plugin-sdk` from the container's `/app/packages/plugins/sdk` after `npm install`. This ensures the plugin uses the same SDK version as Paperclip core.
+
+---
+
+## Customer Onboarding Runbook
+
+Complete procedure for onboarding a new customer to a managed Paperclip SaaS instance.
+
+### Prerequisites
+
+- SSH access to the customer's NUC/VPS (add alias to `~/.ssh/config` as `<slug>`)
+- Paperclip instance running on the server with Docker
+- Docker container name: `paperclip-deploy-paperclip-1` (standard Compose name)
+
+### Step 1: Create customer config files
+
+```bash
+# Non-secret config (commit this)
+cat > customers/<slug>.env <<'EOF'
+PC_HOST=http://localhost:3100
+PC_EMAIL=<admin-email>
+PC_COMPANY_ID=<company-uuid>
+SSH_HOST=<slug>
+EOF
+
+# Secret file (NEVER commit — add to .gitignore)
+echo 'PC_PASSWORD=<their-paperclip-admin-password>' > customers/<slug>.secrets
+chmod 600 customers/<slug>.secrets
+```
+
+### Step 2: Wire MCP proxy (one-time per instance)
+
+This gives agents access to all installed plugin tools via the Paperclip MCP interface.
+
+```bash
+PC_PASSWORD=<pw> ./scripts/wire-mcp-to-customer.sh <slug>
+```
+
+On success you'll see `MCP proxy wired` and an agent ID. If the agent is not named "cfo" or "assistant", pass its ID explicitly:
+
+```bash
+PC_PASSWORD=<pw> ./scripts/wire-mcp-to-customer.sh <slug> <agent-uuid>
+```
+
+### Step 3: Provision plugins (first-time — creates secrets)
+
+Run `provision-plugin.sh` for each plugin you want to install. The env vars carry the actual credential values; the script creates Paperclip secrets from them and writes UUIDs to `customers/<slug>/<plugin>.json`.
+
+The env var name is the secretRef key uppercased. See the table at the end of this section.
+
+```bash
+# Dinero (3 secrets + dineroOrgId in configJson)
+PC_PASSWORD=<pw> \
+  DINEROCLIENTIDREF=<dinero-client-id> \
+  DINEROCLIENTSECRETREF=<dinero-client-secret> \
+  DINEROAPIKEYREF=<dinero-api-key> \
+  PLUGIN_CONFIG_dineroOrgId=<org-id> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-dinero
+
+# Billy (1 secret)
+PC_PASSWORD=<pw> ACCESSTOKENREF=<billy-access-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-billy
+
+# e-conomic (2 secrets)
+PC_PASSWORD=<pw> \
+  APPSECRETTOKENREF=<economic-app-secret-token> \
+  AGREEMENTGRANTTOKENREF=<economic-agreement-grant-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-economic
+
+# Zendesk (1 secret + 2 configJson fields)
+PC_PASSWORD=<pw> \
+  APITOKENREF=<zendesk-api-token> \
+  PLUGIN_CONFIG_subdomain=<zendesk-subdomain> \
+  PLUGIN_CONFIG_email=<zendesk-agent-email> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-zendesk
+
+# HubSpot (1 secret)
+PC_PASSWORD=<pw> ACCESSTOKENREF=<hubspot-private-app-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-hubspot
+
+# Slack (1 secret — bot token starting with xoxb-)
+PC_PASSWORD=<pw> BOTTOKENREF=<slack-bot-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-slack
+
+# Google Sheets (1 secret — full service account JSON key)
+PC_PASSWORD=<pw> SERVICEACCOUNTJSONREF=<service-account-json-string> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-google-sheets
+
+# Notion (1 secret — internal integration token)
+PC_PASSWORD=<pw> INTEGRATIONTOKENREF=<notion-integration-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-notion
+
+# Linear (1 secret — personal API key)
+PC_PASSWORD=<pw> APIKEYREF=<linear-personal-api-key> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-linear
+
+# Email (1 secret + configJson fields)
+PC_PASSWORD=<pw> \
+  EMAILPASSWORDREF=<imap-smtp-password> \
+  PLUGIN_CONFIG_emailUser=<email-address> \
+  PLUGIN_CONFIG_imapHost=mail.your-server.de \
+  PLUGIN_CONFIG_imapPort=993 \
+  PLUGIN_CONFIG_smtpHost=mail.your-server.de \
+  PLUGIN_CONFIG_smtpPort=465 \
+  PLUGIN_CONFIG_displayName=<sender-display-name> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-email
+```
+
+**Env var → secretRef key mapping** (rule: uppercase the camelCase key):
+
+| Plugin | secretRef key | Env var |
+|---|---|---|
+| Dinero | `dineroClientIdRef` | `DINEROCLIENTIDREF` |
+| Dinero | `dineroClientSecretRef` | `DINEROCLIENTSECRETREF` |
+| Dinero | `dineroApiKeyRef` | `DINEROAPIKEYREF` |
+| Billy, HubSpot | `accessTokenRef` | `ACCESSTOKENREF` |
+| e-conomic | `appSecretTokenRef` | `APPSECRETTOKENREF` |
+| e-conomic | `agreementGrantTokenRef` | `AGREEMENTGRANTTOKENREF` |
+| Zendesk | `apiTokenRef` | `APITOKENREF` |
+| Slack | `botTokenRef` | `BOTTOKENREF` |
+| Google Sheets | `serviceAccountJsonRef` | `SERVICEACCOUNTJSONREF` |
+| Notion | `integrationTokenRef` | `INTEGRATIONTOKENREF` |
+| Linear | `apiKeyRef` | `APIKEYREF` |
+| Email | `emailPasswordRef` | `EMAILPASSWORDREF` |
+
+After this step, `customers/<slug>/plugin-*.json` files exist with resolved secret UUIDs. Commit them.
+
+### Step 4: Verify all plugins are healthy
+
+```bash
+# SSH to server and check all plugin health
+ssh <slug> "curl -s -b /tmp/pc_deploy_cookies.txt \
+  http://localhost:3100/api/plugins \
+  -H 'Origin: http://localhost:3100'" | python3 -m json.tool | grep -E '"id"|"status"'
+```
+
+All plugins should show `"status": "ready"`.
+
+### Step 5: Verify agent can see tools
+
+After MCP wiring, open Paperclip in browser and start a conversation with the agent. Ask it to list its available tools or call a simple tool like `linear_list_teams`. Watch server logs:
+
+```bash
+ssh <slug> "DOCKER_HOST=unix:///var/run/docker.sock docker logs paperclip-deploy-paperclip-1 --tail=50 2>&1" | grep -i "mcp\|tool\|plugin"
+```
+
+### Subsequent deploys
+
+When you update a plugin (bug fix, new tool), no secrets are recreated:
+
+```bash
+PC_PASSWORD=<pw> ./scripts/deploy-for-customer.sh <slug> packages/plugin-billy
+```
+
+This reads `customers/<slug>/plugin-billy.json` for the existing secret UUIDs.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Plugin installs but `registered.tools = 0` | `tools[]` array missing from manifest | Add tool declarations to manifest `tools[]` (both manifest + worker required) |
+| Worker crashes with "secret not found" | Config set but worker started before config was applied | Uninstall with `purge=false`, reinstall — worker reads config on startup |
+| `ctx.tools.register()` never fires | Worker returned early due to missing config / secret error | Check container logs for error message before the `ready` log |
+| `isRunning` returns false at tool execute | Paperclip server bug (pluginDbId missing) | Reapply patch to `plugin-tool-dispatcher.js` and `plugin-loader.js` (see Bug Patches section) |
+| MCP tool names don't appear in agent | MCP proxy not wired or agent `extraArgs` missing `--settings` flag | Re-run `wire-mcp-to-customer.sh` |
+| Tool execute returns 401/403 | Session cookie expired | Re-auth: `curl -X POST .../api/auth/sign-in/email` |
+| `npm install` fails inside container | Package requires native build tools | Use `--ignore-scripts` flag; most plugins need zero native deps |
+
+---
+
+## Bug Patches (Paperclip Server)
+
+**⚠️ These patches are applied to compiled JS in the container — they will be lost on container image rebuild.**
+
+### pluginDbId missing in tool dispatcher
+
+Root cause: `plugin-loader.js` called `toolDispatcher.registerPluginTools(pluginKey, manifest)` without passing the DB UUID. Workers are keyed by DB UUID in the workers Map, so `workerManager.isRunning(pluginKey)` returned false even for healthy workers — tool execution always failed.
+
+**File:** `/app/server/dist/services/plugin-tool-dispatcher.js` (~line 210)
+```js
+// Change:
+registerPluginTools(pluginId, manifest)
+// To:
+registerPluginTools(pluginId, manifest, pluginDbId)
+// And pass pluginDbId through to registry.registerPlugin(...)
+```
+
+**File:** `/app/server/dist/services/plugin-loader.js` (~line 1085)
+```js
+// Change:
+toolDispatcher.registerPluginTools(pluginKey, manifest)
+// To:
+toolDispatcher.registerPluginTools(pluginKey, manifest, pluginId)
+```
+
+Apply with `docker exec paperclip-deploy-paperclip-1 bash -c "..."` or `docker cp` a patched file.
