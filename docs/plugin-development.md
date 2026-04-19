@@ -334,11 +334,71 @@ Credentials come from: email Dinero support for `clientId`/`clientSecret`; creat
 
 ---
 
-## SaaS Deployment Strategy
+## Scripted Deployment (SaaS workflow)
 
-For the Gearloose SaaS (installing plugins on customer Paperclip instances), the path-increment workaround for Node's module cache is not scalable. The production approach should be:
+The manual steps above are fully automated. Use these scripts from the repo root:
 
-1. **Package plugins as npm tarballs** — `npm pack` produces a `.tgz`. Paperclip's install API likely supports npm package names if the instance has network access, removing the need for manual `docker cp`.
-2. **Automate the install script** — wrap steps 2–9 above in a single idempotent shell script or Node script that takes `HOST`, `EMAIL`, `PASSWORD`, and secret values as arguments.
-3. **Version in the plugin ID or path** — until Paperclip supports in-place plugin updates, bump the container path on each version (or use a Paperclip restart to clear the import cache cleanly).
-4. **Secret creation via API** — already possible; integrate into the onboarding flow so customers never paste secrets into config fields directly.
+### First-time plugin deployment (creates secrets inline)
+
+```bash
+# Billy (one secret: Billy API access token)
+PC_PASSWORD=<pw> ACCESSTOKENREF=<billy-api-token> \
+  ./scripts/provision-plugin.sh gearloose packages/plugin-billy
+
+# Zendesk (one secret + configJson fields)
+PC_PASSWORD=<pw> APITOKENREF=<zendesk-api-token> \
+PLUGIN_CONFIG_subdomain=mycompany PLUGIN_CONFIG_email=agent@mycompany.com \
+  ./scripts/provision-plugin.sh gearloose packages/plugin-zendesk
+
+# e-conomic (two secrets)
+PC_PASSWORD=<pw> APPSECRETTOKENREF=<app-secret> AGREEMENTGRANTTOKENREF=<grant-token> \
+  ./scripts/provision-plugin.sh gearloose packages/plugin-economic
+```
+
+`provision-plugin.sh` will:
+1. Authenticate with Paperclip
+2. Create each secret via the secrets API (skipping any already recorded in `customers/<slug>/<plugin>.json`)
+3. Write `customers/<slug>/<plugin-slug>.json` with the resolved secret UUIDs
+4. Run `deploy-plugin.sh` to build, copy, and install the plugin
+
+### Subsequent deploys (secrets already created)
+
+```bash
+PC_PASSWORD=<pw> ./scripts/deploy-for-customer.sh gearloose packages/plugin-billy
+```
+
+This reads `customers/gearloose/plugin-billy.json` for secret UUIDs — no secrets are created.
+
+### Wire MCP proxy (one-time per instance — gives agents access to plugin tools)
+
+```bash
+PC_PASSWORD=<pw> ./scripts/wire-mcp-to-customer.sh gearloose [agent-id]
+```
+
+This builds the proxy locally, copies it into the container, writes the MCP config, and patches the CFO agent's `adapterConfig.extraArgs` to load it. If `agent-id` is omitted, it auto-selects the agent named "cfo" or "assistant".
+
+### Customer config files
+
+- `customers/<slug>.env` — non-secret instance config (PC_HOST, PC_EMAIL, PC_COMPANY_ID, SSH_HOST)
+- `customers/<slug>.secrets` — PC_PASSWORD (not committed)
+- `customers/<slug>/<plugin-slug>.json` — per-customer deploy config with resolved secret UUIDs (safe to commit since UUIDs ≠ secret values)
+
+### Env var naming convention for provision-plugin.sh
+
+| secretRef key in deploy-config.json | Env var to pass |
+|---|---|
+| `accessTokenRef` | `ACCESSTOKENREF=<value>` |
+| `apiTokenRef` | `APITOKENREF=<value>` |
+| `appSecretTokenRef` | `APPSECRETTOKENREF=<value>` |
+| `agreementGrantTokenRef` | `AGREEMENTGRANTTOKENREF=<value>` |
+| `serviceAccountJsonRef` | `SERVICEACCOUNTJSONREF=<value>` |
+
+configJson field overrides: `PLUGIN_CONFIG_<fieldname>=<value>` (e.g. `PLUGIN_CONFIG_subdomain=myco`)
+
+---
+
+## SaaS Notes
+
+- **Path versioning**: `deploy-plugin.sh` auto-increments container path (`/paperclip-email-v1`, `-v2`, ...) on each deploy. Node's module cache is keyed by path, so this forces fresh imports.
+- **Secret UUIDs ≠ secret values**: Safe to commit `customers/<slug>/<plugin>.json` — the UUIDs are opaque references, not the actual credentials.
+- **SDK symlink**: `deploy-plugin.sh` always symlinks `@paperclipai/plugin-sdk` from the container's `/app/packages/plugins/sdk` after `npm install`. This ensures the plugin uses the same SDK version as Paperclip core.
