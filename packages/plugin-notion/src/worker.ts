@@ -235,7 +235,30 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("Notion plugin ready — 8 tools registered");
+    ctx.tools.register(
+      "notion_update_page",
+      {
+        displayName: "Update Page Title",
+        description: "Update the title of an existing Notion page.",
+        parametersSchema: {
+          type: "object",
+          required: ["page_id", "title"],
+          properties: {
+            page_id: { type: "string", description: "Notion page ID." },
+            title: { type: "string", description: "New title for the page." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.updatePageTitle(p.page_id as string, p.title as string);
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("Notion plugin ready — 9 tools registered");
   },
 
   async onHealth() {

@@ -138,6 +138,19 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "notion_update_page",
+      displayName: "Update Page Title",
+      description: "Update the title of an existing Notion page.",
+      parametersSchema: {
+        type: "object",
+        required: ["page_id", "title"],
+        properties: {
+          page_id: { type: "string", description: "Notion page ID." },
+          title: { type: "string", description: "New title for the page." },
+        },
+      },
+    },
   ],
 };
 
