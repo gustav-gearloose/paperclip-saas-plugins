@@ -185,23 +185,25 @@ async function main(): Promise<void> {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args = {} } = request.params;
     try {
-      const result = await executePluginTool(
+      const resp = await executePluginTool(
         name,
         args as Record<string, unknown>
-      );
-      const text =
-        typeof result === "string" ? result : JSON.stringify(result, null, 2);
-      return {
-        content: [{ type: "text", text }],
-      };
+      ) as Record<string, unknown>;
+      // Unwrap { pluginId, toolName, result: { content, error? } }
+      const inner = (resp?.result ?? resp) as Record<string, unknown>;
+      if (inner?.error) {
+        return {
+          content: [{ type: "text", text: String(inner.error) }],
+          isError: true,
+        };
+      }
+      const text = typeof inner?.content === "string"
+        ? inner.content
+        : JSON.stringify(resp, null, 2);
+      return { content: [{ type: "text", text }] };
     } catch (err) {
       return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-          },
-        ],
+        content: [{ type: "text", text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
         isError: true,
       };
     }
