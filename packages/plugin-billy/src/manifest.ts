@@ -129,6 +129,36 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    {
+      name: "billy_create_invoice",
+      displayName: "Create Invoice",
+      description: "Create a new draft invoice in Billy.",
+      parametersSchema: {
+        type: "object",
+        required: ["contact_id", "entry_date", "lines"],
+        properties: {
+          contact_id: { type: "string", description: "Billy contact ID for the customer." },
+          entry_date: { type: "string", description: "Invoice date (YYYY-MM-DD)." },
+          currency_id: { type: "string", description: "ISO currency code, e.g. DKK. Default: DKK." },
+          lines: {
+            type: "array",
+            description: "Invoice lines.",
+            items: {
+              type: "object",
+              required: ["description", "quantity", "unit_price"],
+              properties: {
+                product_id: { type: "string" },
+                description: { type: "string" },
+                quantity: { type: "number" },
+                unit_price: { type: "number" },
+                account_id: { type: "string" },
+                tax_rate_id: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    },
   ],
 };
 

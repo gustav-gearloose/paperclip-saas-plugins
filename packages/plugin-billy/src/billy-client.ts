@@ -96,4 +96,43 @@ export class BillyClient {
       page: 1,
     });
   }
+
+  async createInvoice(invoice: {
+    contactId: string;
+    entryDate: string;
+    currencyId?: string;
+    lines: Array<{
+      productId?: string;
+      description: string;
+      quantity: number;
+      unitPrice: number;
+      accountId?: string;
+      taxRateId?: string;
+    }>;
+  }): Promise<unknown> {
+    const body = {
+      invoice: {
+        contactId: invoice.contactId,
+        entryDate: invoice.entryDate,
+        currencyId: invoice.currencyId ?? "DKK",
+        state: "draft",
+        lines: invoice.lines.map((l, i) => ({
+          priority: i,
+          ...(l.productId ? { productId: l.productId } : {}),
+          description: l.description,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          ...(l.accountId ? { accountId: l.accountId } : {}),
+          ...(l.taxRateId ? { taxRateId: l.taxRateId } : {}),
+        })),
+      },
+    };
+    const resp = await fetch(`${BASE}/invoices`, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) throw new Error(`Billy API ${resp.status} POST /invoices: ${await resp.text()}`);
+    return resp.json();
+  }
 }

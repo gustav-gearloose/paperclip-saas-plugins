@@ -201,7 +201,60 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("Billy plugin ready — 8 tools registered");
+    ctx.tools.register(
+      "billy_create_invoice",
+      {
+        displayName: "Create Invoice",
+        description: "Create a new draft invoice in Billy.",
+        parametersSchema: {
+          type: "object",
+          required: ["contact_id", "entry_date", "lines"],
+          properties: {
+            contact_id: { type: "string", description: "Billy contact ID for the customer." },
+            entry_date: { type: "string", description: "Invoice date (YYYY-MM-DD)." },
+            currency_id: { type: "string", description: "ISO currency code, e.g. DKK. Default: DKK." },
+            lines: {
+              type: "array",
+              description: "Invoice lines.",
+              items: {
+                type: "object",
+                required: ["description", "quantity", "unit_price"],
+                properties: {
+                  product_id: { type: "string" },
+                  description: { type: "string" },
+                  quantity: { type: "number" },
+                  unit_price: { type: "number" },
+                  account_id: { type: "string" },
+                  tax_rate_id: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const lines = (p.lines as Array<Record<string, unknown>>).map((l) => ({
+            productId: l.product_id as string | undefined,
+            description: l.description as string,
+            quantity: l.quantity as number,
+            unitPrice: l.unit_price as number,
+            accountId: l.account_id as string | undefined,
+            taxRateId: l.tax_rate_id as string | undefined,
+          }));
+          const data = await client.createInvoice({
+            contactId: p.contact_id as string,
+            entryDate: p.entry_date as string,
+            currencyId: p.currency_id as string | undefined,
+            lines,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.logger.info("Billy plugin ready — 9 tools registered");
   },
 
   async onHealth() {
