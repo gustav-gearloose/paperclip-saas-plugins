@@ -155,6 +155,7 @@ SMOKE_TOOLS=(
   "freshsales|freshsales_list_contacts|{}"
   "bamboohr|bamboohr_get_directory|{}"
   "personio|personio_list_employees|{}"
+  "podio|podio_get_tasks|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

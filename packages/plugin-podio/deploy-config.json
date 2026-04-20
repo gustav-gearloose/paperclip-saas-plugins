@@ -1,0 +1,19 @@
+{
+  "configJson": {
+    "appId": ""
+  },
+  "secretRefs": {
+    "clientIdRef": {
+      "name": "podio-client-id",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    },
+    "clientSecretRef": {
+      "name": "podio-client-secret",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    },
+    "appTokenRef": {
+      "name": "podio-app-token",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    }
+  }
+}

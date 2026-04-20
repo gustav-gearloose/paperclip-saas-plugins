@@ -897,3 +897,30 @@ PC_PASSWORD=<pw> \
   CLIENTSECRETREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-personio
 ```
+
+---
+
+## Podio
+
+**Env vars:** `CLIENTIDREF`, `CLIENTSECRETREF`, `APPTOKENREF`, `PLUGIN_CONFIG_appId`
+
+**Where to find them:**
+1. Log in to [podio.com](https://podio.com) → click your avatar → **Account Settings**
+2. Go to **API Keys** → **Generate API Key** — note the **Client ID** and **Client Secret**
+3. Go to the Podio app you want the agent to access → open the app in the sidebar
+4. Click the wrench icon (App settings) → **Developer** → copy the **App ID** and **App Token**
+5. Store Client ID as a Paperclip secret → UUID as `CLIENTIDREF`
+6. Store Client Secret as a Paperclip secret → UUID as `CLIENTSECRETREF`
+7. Store App Token as a Paperclip secret → UUID as `APPTOKENREF`
+8. **PLUGIN_CONFIG_appId**: the numeric App ID (not secret — plain config value)
+
+> Uses Podio app authentication (grant_type=app). The plugin authenticates once on startup with client credentials + app credentials.
+
+```bash
+PC_PASSWORD=<pw> \
+  CLIENTIDREF=<secret-uuid> \
+  CLIENTSECRETREF=<secret-uuid> \
+  APPTOKENREF=<secret-uuid> \
+  PLUGIN_CONFIG_appId=<numeric-app-id> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-podio
+```
