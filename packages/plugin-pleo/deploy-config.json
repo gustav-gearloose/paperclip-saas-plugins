@@ -1,0 +1,7 @@
+{
+  "configJson": {},
+  "secretRefs": {
+    "clientIdRef": { "uuid": "REPLACE_WITH_SECRET_UUID" },
+    "clientSecretRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}

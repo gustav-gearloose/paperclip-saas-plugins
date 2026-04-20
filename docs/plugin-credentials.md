@@ -1129,3 +1129,23 @@ CLIENTIDREF=<secret-uuid> \
   REFRESHTOKENREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-planday
 ```
+
+## 58. Pleo
+
+**Where to get credentials:**
+1. Log in to [Pleo Developer Portal](https://app.pleo.io) → Settings → Integrations → API
+2. Create a new API client — copy the **Client ID** and **Client Secret**
+3. The plugin uses OAuth2 client credentials flow (no user interaction required)
+4. Store both values as Paperclip secrets
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `CLIENTIDREF` | UUID of the Paperclip secret holding your Pleo API client ID |
+| `CLIENTSECRETREF` | UUID of the Paperclip secret holding your Pleo API client secret |
+
+```bash
+CLIENTIDREF=<secret-uuid> \
+  CLIENTSECRETREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-pleo
+```

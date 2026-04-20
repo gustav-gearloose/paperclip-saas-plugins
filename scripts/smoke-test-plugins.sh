@@ -184,6 +184,7 @@ SMOKE_TOOLS=(
   "sage|sage_list_sales_invoices|{}"
   "superoffice|superoffice_get_current_user|{}"
   "planday|planday_list_departments|{}"
+  "pleo|pleo_list_tags|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
