@@ -76,11 +76,12 @@ info "Proxy installed at $PROXY_PATH"
 # Do this before writing MCP config so we can include PC_AGENT_ID in the env block.
 
 info "Authenticating with Paperclip at $PC_HOST..."
-ssh "$SSH_HOST" "curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
+_AUTH_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'email':sys.argv[1],'password':sys.argv[2]}).encode()).decode())" "$PC_EMAIL" "$PC_PASSWORD")
+ssh "$SSH_HOST" "echo $_AUTH_B64 | base64 -d | curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
   -H 'Content-Type: application/json' \
   -H 'Origin: $PC_HOST' \
   -c /tmp/pc_wire_cookies.txt \
-  -d '{\"email\":\"$PC_EMAIL\",\"password\":\"$PC_PASSWORD\"}' > /dev/null"
+  --data-binary @- > /dev/null"
 
 if [[ -z "$AGENT_ID" ]]; then
   info "No agent-id given — looking up agents..."

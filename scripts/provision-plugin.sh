@@ -69,11 +69,12 @@ mkdir -p "$CUSTOMER_DIR"
 # ── step 1: authenticate ─────────────────────────────────────────────────────
 
 info "Authenticating with Paperclip at $PC_HOST..."
-ssh "$SSH_HOST" "curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
+_AUTH_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'email':sys.argv[1],'password':sys.argv[2]}).encode()).decode())" "$PC_EMAIL" "$PC_PASSWORD")
+ssh "$SSH_HOST" "echo $_AUTH_B64 | base64 -d | curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
   -H 'Content-Type: application/json' \
   -H 'Origin: $PC_HOST' \
   -c /tmp/pc_provision_cookies.txt \
-  -d '{\"email\":\"$PC_EMAIL\",\"password\":\"$PC_PASSWORD\"}' > /dev/null"
+  --data-binary @- > /dev/null"
 
 # ── step 2: create secrets and build customer config ─────────────────────────
 
