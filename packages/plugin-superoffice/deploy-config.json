@@ -1,0 +1,10 @@
+{
+  "configJson": {
+    "tenantId": "REPLACE_WITH_TENANT_ID"
+  },
+  "secretRefs": {
+    "clientIdRef": { "uuid": "REPLACE_WITH_SECRET_UUID" },
+    "clientSecretRef": { "uuid": "REPLACE_WITH_SECRET_UUID" },
+    "refreshTokenRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}

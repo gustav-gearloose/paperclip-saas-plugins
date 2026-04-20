@@ -182,6 +182,7 @@ SMOKE_TOOLS=(
   "quickbooks|quickbooks_list_accounts|{}"
   "freshbooks|freshbooks_list_clients|{}"
   "sage|sage_list_sales_invoices|{}"
+  "superoffice|superoffice_get_current_user|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

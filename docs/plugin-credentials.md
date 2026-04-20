@@ -1081,3 +1081,29 @@ CLIENTIDREF=<secret-uuid> \
   REFRESHTOKENREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-sage
 ```
+
+## 56. SuperOffice CRM
+
+**Where to get credentials:**
+1. Go to [developer.superoffice.com](https://developer.superoffice.com) → Create an app (type: Web Application)
+2. Copy the **Client ID** and **Client Secret**
+3. Complete the OAuth2 authorization code flow — redirect URI must be registered in the developer portal
+4. Exchange the auth code for tokens; store the **refresh token** as a Paperclip secret
+5. Note your **Tenant ID** (e.g. `Cust12345`) — visible in your SuperOffice Online URL
+6. Refresh tokens rotate on each use — the plugin stores the latest automatically
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `CLIENTIDREF` | UUID of the Paperclip secret holding the SuperOffice OAuth2 client ID |
+| `CLIENTSECRETREF` | UUID of the Paperclip secret holding the SuperOffice OAuth2 client secret |
+| `REFRESHTOKENREF` | UUID of the Paperclip secret holding the SuperOffice OAuth2 refresh token |
+| `PLUGIN_CONFIG_tenantId` | SuperOffice tenant ID, e.g. `Cust12345` |
+
+```bash
+CLIENTIDREF=<secret-uuid> \
+  CLIENTSECRETREF=<secret-uuid> \
+  REFRESHTOKENREF=<secret-uuid> \
+  PLUGIN_CONFIG_tenantId=Cust12345 \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-superoffice
+```

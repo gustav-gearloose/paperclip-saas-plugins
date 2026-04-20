@@ -130,7 +130,8 @@ plugin_dir() {
     53) echo "packages/plugin-quickbooks" ;;
     54) echo "packages/plugin-freshbooks" ;;
     55) echo "packages/plugin-sage" ;;
-    56) echo "__custom__" ;;
+    56) echo "packages/plugin-superoffice" ;;
+    57) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -192,7 +193,8 @@ plugin_env_vars() {
     53) printf 'CLIENTIDREF\nCLIENTSECRETREF\nREFRESHTOKENREF\nPLUGIN_CONFIG_realmId' ;;
     54) printf 'CLIENTIDREF\nCLIENTSECRETREF\nREFRESHTOKENREF' ;;
     55) printf 'CLIENTIDREF\nCLIENTSECRETREF\nREFRESHTOKENREF' ;;
-    56) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    56) printf 'CLIENTIDREF\nCLIENTSECRETREF\nREFRESHTOKENREF\nPLUGIN_CONFIG_tenantId' ;;
+    57) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -257,14 +259,15 @@ echo "   52) Visma eAccounting (invoices, customers, articles, account balances,
 echo "   53) QuickBooks Online (invoices, customers, accounts, P&L report, vendors, bills)"
 echo "   54) FreshBooks (invoices, clients, expenses, payments, time entries)"
 echo "   55) Sage Business Cloud (invoices, contacts, purchases, ledger accounts, payments)"
-echo "   56) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   56) SuperOffice CRM (contacts, persons, sales, appointments, projects)"
+echo "   57) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to add? (comma-separated numbers, e.g. 1,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55)  # 56 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56)  # 57 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi
@@ -286,7 +289,7 @@ for num in "${SELECTED_NUMS[@]}"; do
   [[ -z "$dir" ]] && { warn "Unknown plugin number: $num (skipping)"; continue; }
 
   # ── custom plugin scaffold sub-flow ────────────────────────────────────────
-  if [[ "$dir" == "__custom__" ]]; then  # slot 56
+  if [[ "$dir" == "__custom__" ]]; then  # slot 57
     echo ""
     echo -e "  ${CYAN}Custom plugin scaffold${NC}"
     ask "  Plugin name (short, e.g. 'freshdesk' or 'fortnox'):"
