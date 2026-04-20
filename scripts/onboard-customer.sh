@@ -192,7 +192,7 @@ plugin_env_vars() {
     7)  printf 'SERVICEACCOUNTJSONREF' ;;
     8)  printf 'INTEGRATIONTOKENREF' ;;
     9)  printf 'APIKEYREF' ;;
-    10) printf 'EMAILPASSWORDREF\nPLUGIN_CONFIG_emailUser\nPLUGIN_CONFIG_imapHost\nPLUGIN_CONFIG_imapPort\nPLUGIN_CONFIG_smtpHost\nPLUGIN_CONFIG_smtpPort' ;;
+    10) printf 'EMAILPASSWORDREF\nPLUGIN_CONFIG_emailUser\nPLUGIN_CONFIG_imapHost\nPLUGIN_CONFIG_imapPort\nPLUGIN_CONFIG_smtpHost\nPLUGIN_CONFIG_smtpPort\nPLUGIN_CONFIG_displayName' ;;
     *)  printf '' ;;
   esac
 }

@@ -98,13 +98,19 @@ info "Written: $MCP_CONFIG_PATH"
 
 # ── step 4: verify proxy starts ───────────────────────────────────────────────
 
-info "Verifying proxy starts inside container..."
-ssh "$SSH_HOST" "PC_PW='$PC_PASSWORD' $DOCKER exec \
+info "Verifying proxy starts inside container (6s test)..."
+proxy_out=$(ssh "$SSH_HOST" "PC_PW='$PC_PASSWORD' $DOCKER exec \
   -e PC_HOST=$PC_HOST_INTERNAL \
   -e PC_EMAIL=$PC_EMAIL \
   -e PC_PASSWORD=\$PC_PW \
   -e PC_COMPANY_ID=$PC_COMPANY_ID \
-  $CONTAINER timeout 6 node $PROXY_PATH/index.js 2>&1" || true
+  $CONTAINER timeout 6 node $PROXY_PATH/index.js 2>&1" || true)
+if echo "$proxy_out" | grep -qi "Missing required env\|Cannot find module\|SyntaxError\|Error:"; then
+  echo "$proxy_out"
+  die "Proxy failed to start — check output above"
+else
+  echo "  proxy stderr: ${proxy_out:-<no output — likely started OK>}"
+fi
 
 # ── step 5: authenticate ───────────────────────────────────────────────────────
 
