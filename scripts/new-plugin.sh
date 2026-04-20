@@ -350,8 +350,7 @@ echo "  4. Provision for a customer:"
 if [[ ${#SECRETS[@]} -gt 0 ]]; then
   echo "     PC_PASSWORD=<pw> \\"
   for ref in "${SECRETS[@]}"; do
-    var_name="${ref^^}"  # uppercase
-    var_name="${var_name//REF/REF}"
+    var_name="$(echo "$ref" | tr '[:lower:]' '[:upper:]')"
     echo "       ${var_name}=<value> \\"
   done
   for key in "${CONFIG_KEYS[@]}"; do
