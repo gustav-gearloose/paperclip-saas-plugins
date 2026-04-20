@@ -133,11 +133,15 @@ PC_PASSWORD=<pw> \
 5. Download the JSON key file — paste its **entire contents** as the secret value
 6. Share any Google Sheet you want the agent to access with the service account email (viewer or editor)
 
+The JSON file is multi-line — use a subshell to read it from disk rather than pasting inline:
+
 ```bash
 PC_PASSWORD=<pw> \
-  SERVICEACCOUNTJSONREF='{"type":"service_account","project_id":"..."}' \
+  SERVICEACCOUNTJSONREF="$(cat /path/to/service-account-key.json)" \
   ./scripts/provision-plugin.sh <slug> packages/plugin-google-sheets
 ```
+
+Or via the interactive onboard wizard — it reads the value with `read` so multi-line and special chars work fine when you paste.
 
 ---
 
