@@ -1,0 +1,9 @@
+{
+  "configJson": {},
+  "secretRefs": {
+    "apiTokenRef": {
+      "name": "toggl-api-token",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    }
+  }
+}

@@ -123,7 +123,8 @@ plugin_dir() {
     46) echo "packages/plugin-bamboohr" ;;
     47) echo "packages/plugin-personio" ;;
     48) echo "packages/plugin-podio" ;;
-    49) echo "__custom__" ;;
+    49) echo "packages/plugin-toggl" ;;
+    50) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -178,7 +179,8 @@ plugin_env_vars() {
     46) printf 'APIKEYREF\nPLUGIN_CONFIG_domain' ;;
     47) printf 'CLIENTIDREF\nCLIENTSECRETREF' ;;
     48) printf 'CLIENTIDREF\nCLIENTSECRETREF\nAPPTOKENREF\nPLUGIN_CONFIG_appId' ;;
-    49) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    49) printf 'APITOKENREF' ;;
+    50) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -236,14 +238,15 @@ echo "   45) Freshsales (CRM — contacts, accounts, deals, notes, tasks, search
 echo "   46) BambooHR (HR — employee directory, time off, org chart, custom reports)"
 echo "   47) Personio (HR — employees, absences, attendance, departments)"
 echo "   48) Podio (project management — items, tasks, comments, search)"
-echo "   49) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   49) Toggl Track (time tracking — entries, projects, clients, reports)"
+echo "   50) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to add? (comma-separated numbers, e.g. 1,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48)  # 49 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49)  # 50 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi

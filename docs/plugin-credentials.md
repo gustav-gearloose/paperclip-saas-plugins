@@ -924,3 +924,19 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_appId=<numeric-app-id> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-podio
 ```
+
+## Toggl Track (49)
+
+**Where to get credentials:**
+1. Log in to Toggl Track → click your avatar → **Profile Settings**
+2. Scroll to the bottom — copy the **API Token**
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `APITOKENREF` | UUID of the Paperclip secret holding the Toggl API token |
+
+```bash
+APITOKENREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-toggl
+```
