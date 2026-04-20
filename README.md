@@ -216,7 +216,7 @@ docs/
 
 ## Plugin library
 
-**39 plugins / ~390 tools** — all validate clean with zero external npm dependencies.
+**39 plugins / 393 tools** — all validate clean with zero external npm dependencies.
 
 ### Accounting / Finance
 | Plugin | Package | Tools | Auth |
@@ -226,34 +226,34 @@ docs/
 | e-conomic | `plugin-economic` | 11 | Dual header (app + grant token) |
 | Fortnox | `plugin-fortnox` | 10 | OAuth2 + refresh rotation |
 | Stripe | `plugin-stripe` | 10 | Bearer token |
-| Harvest | `plugin-harvest` | 10 | Bearer token |
+| Harvest | `plugin-harvest` | 9 | Bearer token |
 
 ### CRM / Sales
 | Plugin | Package | Tools | Auth |
 |--------|---------|-------|------|
 | HubSpot | `plugin-hubspot` | 14 | Bearer token |
 | Pipedrive | `plugin-pipedrive` | 11 | API token query param |
-| Salesforce | `plugin-salesforce` | 10 | Bearer (OAuth2 access token) |
+| Salesforce | `plugin-salesforce` | 13 | Bearer (OAuth2 access token) |
 | Zoho CRM | `plugin-zoho-crm` | 11 | Zoho-oauthtoken + domain config |
 
 ### Email / Marketing
 | Plugin | Package | Tools | Auth |
 |--------|---------|-------|------|
 | Email | `plugin-email` | 7 | IMAP/SMTP credentials |
-| Brevo | `plugin-brevo` | 10 | api-key header |
-| SendGrid | `plugin-sendgrid` | 10 | Bearer token |
+| Brevo | `plugin-brevo` | 11 | api-key header |
+| SendGrid | `plugin-sendgrid` | 14 | Bearer token |
 | Postmark | `plugin-postmark` | 14 | X-Postmark-Server-Token |
 | Mailgun | `plugin-mailgun` | 11 | Basic auth (api:key) + domain |
-| Mailchimp | `plugin-mailchimp` | 10 | Bearer token |
-| Klaviyo | `plugin-klaviyo` | 10 | Klaviyo-API-Key header |
-| ActiveCampaign | `plugin-activecampaign` | 10 | Api-Token header + base URL |
+| Mailchimp | `plugin-mailchimp` | 11 | Bearer token |
+| Klaviyo | `plugin-klaviyo` | 16 | Klaviyo-API-Key header |
+| ActiveCampaign | `plugin-activecampaign` | 12 | Api-Token header + base URL |
 
 ### Communication / Collaboration
 | Plugin | Package | Tools | Auth |
 |--------|---------|-------|------|
 | Slack | `plugin-slack` | 9 | Bot token |
 | Microsoft Teams | `plugin-teams` | 8 | Azure AD client credentials |
-| Twilio | `plugin-twilio` | 10 | Basic auth (accountSid:authToken) |
+| Twilio | `plugin-twilio` | 8 | Basic auth (accountSid:authToken) |
 
 ### Project Management
 | Plugin | Package | Tools | Auth |
@@ -263,10 +263,10 @@ docs/
 | Jira | `plugin-jira` | 10 | Basic auth (email + API token) |
 | Asana | `plugin-asana` | 10 | Bearer token |
 | monday.com | `plugin-monday` | 10 | Authorization: token (no Bearer) |
-| ClickUp | `plugin-clickup` | 10 | Bearer token |
-| Todoist | `plugin-todoist` | 10 | Bearer token |
+| ClickUp | `plugin-clickup` | 9 | Bearer token |
+| Todoist | `plugin-todoist` | 9 | Bearer token |
 | Trello | `plugin-trello` | 10 | API key + token query params |
-| Airtable | `plugin-airtable` | 10 | Bearer token |
+| Airtable | `plugin-airtable` | 8 | Bearer token |
 
 ### Customer Support
 | Plugin | Package | Tools | Auth |
@@ -280,8 +280,8 @@ docs/
 |--------|---------|-------|------|
 | GitHub | `plugin-github` | 10 | Bearer token |
 | Google Sheets | `plugin-google-sheets` | 6 | Service account JWT (RS256) |
-| Typeform | `plugin-typeform` | 10 | Bearer token |
-| Calendly | `plugin-calendly` | 10 | Bearer token |
+| Typeform | `plugin-typeform` | 6 | Bearer token |
+| Calendly | `plugin-calendly` | 7 | Bearer token |
 
 ### eCommerce
 | Plugin | Package | Tools | Auth |
