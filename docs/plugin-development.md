@@ -764,6 +764,69 @@ This reads `customers/<slug>/plugin-billy.json` for the existing secret UUIDs.
 
 ---
 
+## Local development (no Paperclip instance needed)
+
+During plugin development you can run individual tool handlers against the real external API without any VPS or Paperclip container. The SDK ships a test harness (`testing.js`) that instantiates an in-memory host with real HTTP — `ctx.http.fetch` makes actual API calls.
+
+### Workflow
+
+```bash
+# 1. Scaffold and build
+./scripts/new-plugin.sh myservice --secret apiTokenRef --tool list_items
+cd packages/plugin-myservice && npm install && npm run build && cd ../..
+
+# 2. Implement the tool handler in src/worker.ts, then rebuild
+cd packages/plugin-myservice && npm run build && cd ../..
+
+# 3. List available tools
+./scripts/run-tool.sh packages/plugin-myservice --list
+
+# 4. Execute a tool against the real API
+PLUGIN_CONFIG_apiTokenRef=apiTokenRef \
+PLUGIN_SECRET_apiTokenRef=<your-real-token> \
+./scripts/run-tool.sh packages/plugin-myservice myservice_list_items '{}'
+
+# 5. Iterate: edit src/worker.ts → npm run build → run-tool.sh → repeat
+```
+
+### Credential pattern
+
+The harness resolves secrets by matching a `PLUGIN_CONFIG_<ref>=<ref>` (the ref field name as value) with `PLUGIN_SECRET_<ref>=<actual-secret>`:
+
+```bash
+# Single bearer token (most plugins):
+PLUGIN_CONFIG_accessTokenRef=accessTokenRef \
+PLUGIN_SECRET_accessTokenRef=pat-eu1-xxxx \
+./scripts/run-tool.sh packages/plugin-hubspot hubspot_search_contacts '{"limit":3}'
+
+# Multi-secret (e.g. Dinero):
+PLUGIN_CONFIG_dineroOrgId=123456 \
+PLUGIN_CONFIG_dineroClientIdRef=dineroClientIdRef \
+PLUGIN_CONFIG_dineroClientSecretRef=dineroClientSecretRef \
+PLUGIN_CONFIG_dineroApiKeyRef=dineroApiKeyRef \
+PLUGIN_SECRET_dineroClientIdRef=<client-id> \
+PLUGIN_SECRET_dineroClientSecretRef=<client-secret> \
+PLUGIN_SECRET_dineroApiKeyRef=<api-key> \
+./scripts/run-tool.sh packages/plugin-dinero dinero_list_contacts '{}'
+```
+
+Non-secret config values (org IDs, domain names) go directly in `PLUGIN_CONFIG_<key>=<value>`.
+
+### What gets validated locally vs. on deploy
+
+| Check | `run-tool.sh` | `validate-plugins.sh` | Deploy |
+|---|---|---|---|
+| TypeScript compiles | — | ✅ | ✅ |
+| Manifest structure | — | ✅ | ✅ |
+| Tool count parity | — | ✅ | ✅ |
+| Real HTTP to external API | ✅ | — | ✅ |
+| Secret resolution | ✅ | — | ✅ |
+| Paperclip tool registration | — | — | ✅ |
+
+Run both before provisioning: `validate-plugins.sh` catches structural issues; `run-tool.sh` catches auth + API contract issues.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
