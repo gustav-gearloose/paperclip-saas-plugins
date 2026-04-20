@@ -1,0 +1,9 @@
+{
+  "configJson": {
+    "domain": "REPLACE_WITH_MAILGUN_SENDING_DOMAIN",
+    "region": "us"
+  },
+  "secretRefs": {
+    "apiKeyRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}
