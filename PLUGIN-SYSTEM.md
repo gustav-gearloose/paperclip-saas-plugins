@@ -390,3 +390,59 @@ MCP config at `/paperclip/mcp-proxy-config.json` persists (Docker volume) — no
 ### Secrets
 
 Stored as Paperclip secrets, referenced by UUID in `customers/<slug>/plugin-*.json`. Never stored in `deploy-config.json`.
+
+---
+
+## Troubleshooting
+
+### "Plugin status=error after install"
+
+Plugin activated but worker crashed on startup. Check container logs:
+```bash
+ssh <ssh-host> "DOCKER_HOST=unix:///var/run/docker.sock docker logs paperclipai-docker-server-1 --tail 50 2>&1 | grep -i 'error\|plugin'"
+```
+Common causes:
+- Missing npm dependency: run `npm install --ignore-scripts` inside the container plugin dir
+- SDK symlink broken: re-run `ln -sfn /app/packages/plugins/sdk <plugin-path>/node_modules/@paperclipai/plugin-sdk`
+- Secret UUID wrong: check `customers/<slug>/plugin-<name>.json` UUIDs match what's in Paperclip Settings
+
+### "Tools visible on /api/plugins/tools but execute returns worker not running"
+
+Container patches not applied. Run:
+```bash
+./scripts/patch-paperclip-container.sh <customer-slug>
+ssh <ssh-host> "DOCKER_HOST=unix:///var/run/docker.sock docker restart paperclipai-docker-server-1"
+PC_PASSWORD=<pw> ./scripts/deploy-for-customer.sh <customer-slug> packages/plugin-<name>
+```
+
+### "MCP proxy shows 0 tools"
+
+Either the container patches aren't applied, or no plugins are installed. Check:
+```bash
+# From the NUC:
+curl -s http://localhost:3100/api/plugins/tools -b /tmp/pc_deploy_cookies.txt | python3 -c "import sys,json; print(len(json.load(sys.stdin)), 'tools')"
+```
+Fix: apply patches → redeploy plugins → restart proxy (restart the Claude agent session).
+
+### "smoke-test-plugins.sh: No plugins found or auth failed"
+
+Either auth failed or PC_HOST isn't reachable. Test manually:
+```bash
+ssh <ssh-host> "curl -s http://localhost:3100/api/health"
+```
+If health check fails, Paperclip is down — check `docker logs`.
+
+### "provision-plugin.sh: secret value for X not provided"
+
+The env var wasn't exported before running the script. The env var name is the secretRef key UPPERCASED, e.g. `accessTokenRef` → `ACCESSTOKENREF=<value>`.
+
+### "deploy-plugin.sh: Install failed (status=error)"
+
+Check `lastError` field in the curl response. Common: manifest syntax error (apiVersion must be number, not string), missing `capabilities` array, bad `entrypoints.worker` path.
+
+### "Container patches lost after upgrade"
+
+After any `docker pull` + `docker compose up`, the compiled JS is replaced. Always run `post-upgrade.sh` immediately after a Paperclip upgrade:
+```bash
+PC_PASSWORD=<pw> ./scripts/post-upgrade.sh <customer-slug>
+```
