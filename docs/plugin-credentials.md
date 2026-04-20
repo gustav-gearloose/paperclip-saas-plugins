@@ -626,3 +626,18 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_accountSid=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
   ./scripts/provision-plugin.sh <slug> packages/plugin-twilio
 ```
+
+## Brevo (email marketing)
+
+**Env vars:** `APIKEYREF`
+
+**Where to find them:**
+1. Log in to Brevo → top-right menu → **SMTP & API** → **API Keys** tab
+2. Create or copy an existing API key (starts with `xkeysib-...`)
+3. Store it as a Paperclip secret
+
+```bash
+PC_PASSWORD=<pw> \
+  APIKEYREF=<brevo-api-key> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-brevo
+```
