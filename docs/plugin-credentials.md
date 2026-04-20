@@ -1185,3 +1185,23 @@ SERVICEUSERIDREF=<secret-uuid> \
   TOKENREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-hibob
 ```
+
+## 61. Tripletex
+
+**Where to get credentials:**
+1. Log in to Tripletex → Company Settings → API access
+2. Generate a **Consumer Token** for your integration
+3. Under your user profile → Settings → generate an **Employee Token**
+4. Store both as separate Paperclip secrets
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `CONSUMERTOKENREF` | UUID of the Paperclip secret holding the Tripletex Consumer Token |
+| `EMPLOYEETOKENREF` | UUID of the Paperclip secret holding the Tripletex Employee Token |
+
+```bash
+CONSUMERTOKENREF=<secret-uuid> \
+  EMPLOYEETOKENREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-tripletex
+```

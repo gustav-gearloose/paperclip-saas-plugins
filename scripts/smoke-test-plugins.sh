@@ -187,6 +187,7 @@ SMOKE_TOOLS=(
   "pleo|pleo_list_tags|{}"
   "clockify|clockify_list_workspaces|{}"
   "hibob|hibob_list_employees|{}"
+  "tripletex|tripletex_list_customers|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
