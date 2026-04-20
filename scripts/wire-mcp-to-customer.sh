@@ -109,27 +109,28 @@ fi
 # ── step 4: write MCP config to /paperclip volume ────────────────────────────
 
 info "Writing MCP config to $MCP_CONFIG_PATH..."
-# Build JSON locally, pipe into container via ssh+tee (avoids Node require/ESM issues)
-MCP_JSON=$(cat <<MCPEOF
-{
-  "skipDangerousModePermissionPrompt": true,
-  "mcpServers": {
-    "paperclip-plugins": {
-      "type": "stdio",
-      "command": "/usr/local/bin/node",
-      "args": ["$PROXY_PATH/index.js"],
-      "env": {
-        "PC_HOST": "$PC_HOST_INTERNAL",
-        "PC_EMAIL": "$PC_EMAIL",
-        "PC_PASSWORD": "$PC_PASSWORD",
-        "PC_COMPANY_ID": "$PC_COMPANY_ID",
-        "PC_AGENT_ID": "$AGENT_ID"
-      }
+# Build JSON with Python to safely escape all values (avoids breakage if password has " or \)
+MCP_JSON=$(python3 -c "
+import json, sys
+cfg = {
+    'skipDangerousModePermissionPrompt': True,
+    'mcpServers': {
+        'paperclip-plugins': {
+            'type': 'stdio',
+            'command': '/usr/local/bin/node',
+            'args': [sys.argv[1] + '/index.js'],
+            'env': {
+                'PC_HOST': sys.argv[2],
+                'PC_EMAIL': sys.argv[3],
+                'PC_PASSWORD': sys.argv[4],
+                'PC_COMPANY_ID': sys.argv[5],
+                'PC_AGENT_ID': sys.argv[6],
+            }
+        }
     }
-  }
 }
-MCPEOF
-)
+print(json.dumps(cfg, indent=2))
+" "$PROXY_PATH" "$PC_HOST_INTERNAL" "$PC_EMAIL" "$PC_PASSWORD" "$PC_COMPANY_ID" "$AGENT_ID")
 echo "$MCP_JSON" | ssh "$SSH_HOST" "$DOCKER exec -i $CONTAINER tee $MCP_CONFIG_PATH" > /dev/null
 info "Written: $MCP_CONFIG_PATH"
 
