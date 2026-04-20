@@ -176,6 +176,9 @@ SMOKE_TOOLS=(
   "personio|personio_list_employees|{}"
   "podio|podio_get_tasks|{}"
   "toggl|toggl_get_workspaces|{}"
+  "google-calendar|calendar_list_calendars|{}"
+  "xero|xero_list_accounts|{}"
+  "visma|visma_list_fiscal_years|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

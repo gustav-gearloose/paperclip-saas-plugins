@@ -941,3 +941,70 @@ APITOKENREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-toggl
 ```
 
+
+## Google Calendar (50)
+
+**Where to get credentials:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) → IAM & Admin → Service Accounts
+2. Create a service account (or use an existing one) → Actions → Manage Keys → Add Key → JSON
+3. Download the JSON key file — store its contents as a Paperclip secret
+4. Share the target calendar with the service account email (give it "Make changes to events" access)
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `SERVICEACCOUNTJSONREF` | UUID of the Paperclip secret holding the full service account JSON key |
+| `PLUGIN_CONFIG_calendarId` | Calendar ID to operate on (e.g. `primary` or a full calendar email) |
+
+```bash
+SERVICEACCOUNTJSONREF=<secret-uuid> \
+  PLUGIN_CONFIG_calendarId=primary \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-google-calendar
+```
+
+## Xero (51)
+
+**Where to get credentials:**
+1. Register at [developer.xero.com](https://developer.xero.com) → My Apps → New App
+2. Set redirect URI, copy **Client ID** and **Client Secret**
+3. Complete OAuth2 authorization code flow to get a **refresh token** (use Postman or a one-time script)
+4. Find **Tenant ID**: My Apps → your app → Connections tab
+5. Store Client ID, Client Secret, and Refresh Token as separate Paperclip secrets
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `CLIENTIDREF` | UUID of the Paperclip secret holding the Xero OAuth2 client ID |
+| `CLIENTSECRETREF` | UUID of the Paperclip secret holding the Xero OAuth2 client secret |
+| `REFRESHTOKENREF` | UUID of the Paperclip secret holding the Xero OAuth2 refresh token |
+| `PLUGIN_CONFIG_tenantId` | Xero tenant (organisation) ID |
+
+```bash
+CLIENTIDREF=<secret-uuid> \
+  CLIENTSECRETREF=<secret-uuid> \
+  REFRESHTOKENREF=<secret-uuid> \
+  PLUGIN_CONFIG_tenantId=<tenant-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-xero
+```
+
+## Visma eAccounting (52)
+
+**Where to get credentials:**
+1. Register at [selfservice.developer.vismaonline.com](https://selfservice.developer.vismaonline.com/) → create an app
+2. Copy **Client ID** and **Client Secret**
+3. Complete OAuth2 authorization code flow to get a **refresh token** — required scopes: `ea:api ea:sales ea:accounting ea:purchase offline_access`
+4. Store Client ID, Client Secret, and Refresh Token as separate Paperclip secrets
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `CLIENTIDREF` | UUID of the Paperclip secret holding the Visma OAuth2 client ID |
+| `CLIENTSECRETREF` | UUID of the Paperclip secret holding the Visma OAuth2 client secret |
+| `REFRESHTOKENREF` | UUID of the Paperclip secret holding the Visma OAuth2 refresh token |
+
+```bash
+CLIENTIDREF=<secret-uuid> \
+  CLIENTSECRETREF=<secret-uuid> \
+  REFRESHTOKENREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-visma
+```

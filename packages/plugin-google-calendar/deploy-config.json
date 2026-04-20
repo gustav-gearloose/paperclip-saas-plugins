@@ -1,0 +1,8 @@
+{
+  "configJson": {
+    "calendarId": ""
+  },
+  "secretRefs": {
+    "serviceAccountKeyRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}
