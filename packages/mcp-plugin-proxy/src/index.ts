@@ -117,6 +117,20 @@ async function listPluginTools(): Promise<AgentToolDescriptor[]> {
   return data as AgentToolDescriptor[];
 }
 
+async function logInstalledPlugins(): Promise<void> {
+  try {
+    const plugins = await pcFetch("/api/plugins") as Array<{id: string; displayName?: string; name?: string; status?: string}>;
+    if (Array.isArray(plugins) && plugins.length > 0) {
+      const summary = plugins.map(p => `${p.displayName ?? p.name ?? p.id}(${p.status ?? "?"})`).join(", ");
+      process.stderr.write(`   Installed plugins: ${summary}\n`);
+    } else {
+      process.stderr.write("   No plugins installed — deploy plugins first.\n");
+    }
+  } catch {
+    // non-fatal
+  }
+}
+
 // MCP tool names must match [a-zA-Z0-9_-]+ — sanitize the Paperclip "pluginKey:toolName"
 function toMcpName(apiName: string): string {
   return apiName.replace(/[.:]/g, "_");
@@ -139,9 +153,19 @@ let toolMap = new Map<string, AgentToolDescriptor>();
 async function refreshTools(): Promise<void> {
   const descriptors = await listPluginTools();
   toolMap = new Map(descriptors.map((d) => [toMcpName(d.name), d]));
-  process.stderr.write(
-    `→ Loaded ${toolMap.size} plugin tools: ${[...toolMap.keys()].join(", ")}\n`
-  );
+  if (toolMap.size === 0) {
+    process.stderr.write(
+      "⚠️  WARNING: /api/plugins/tools returned 0 tools.\n" +
+      "   This usually means the Paperclip container patches are not applied.\n" +
+      "   Fix: PC_PASSWORD=<pw> ./scripts/patch-paperclip-container.sh <customer-slug>\n" +
+      "   Then redeploy plugins and restart this proxy.\n"
+    );
+    await logInstalledPlugins();
+  } else {
+    process.stderr.write(
+      `→ Loaded ${toolMap.size} plugin tools: ${[...toolMap.keys()].join(", ")}\n`
+    );
+  }
 }
 
 async function executePluginTool(
