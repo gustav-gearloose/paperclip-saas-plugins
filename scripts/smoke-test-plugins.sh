@@ -157,6 +157,7 @@ SMOKE_TOOLS=(
   "personio|personio_list_employees|{}"
   "podio|podio_get_tasks|{}"
   "toggl|toggl_get_workspaces|{}"
+  "harvest|harvest_get_me|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

@@ -1,8 +1,11 @@
 {
   "configJson": {
-    "accountId": "REPLACE_WITH_HARVEST_ACCOUNT_ID"
+    "accountId": ""
   },
   "secretRefs": {
-    "apiTokenRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+    "apiTokenRef": {
+      "name": "harvest-api-token",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    }
   }
 }
