@@ -207,14 +207,14 @@ ssh nuc "sed -i 's|./dist/worker.js|./worker.js|g' ~/paperclip-plugins-src/plugi
 
 ```bash
 # Increment v3 → v4 etc. on each deploy — Node caches imports by path
-ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker cp ~/paperclip-plugins-src/plugin-foo/ paperclip-deploy-paperclip-1:/paperclip-foo-v3"
+ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker cp ~/paperclip-plugins-src/plugin-foo/ paperclipai-docker-server-1:/paperclip-foo-v3"
 
 # Install runtime dependencies INSIDE the container (not from Mac — CJS modules aren't portable)
-ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker exec paperclip-deploy-paperclip-1 bash -c \
+ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker exec paperclipai-docker-server-1 bash -c \
   'cd /paperclip-foo-v3 && npm install --ignore-scripts 2>&1 | tail -5'"
 
 # Symlink the SDK AFTER npm install (npm install would overwrite it)
-ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker exec paperclip-deploy-paperclip-1 bash -c \
+ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker exec paperclipai-docker-server-1 bash -c \
   'rm -rf /paperclip-foo-v3/node_modules/@paperclipai && \
    mkdir -p /paperclip-foo-v3/node_modules/@paperclipai && \
    ln -sfn /app/packages/plugins/sdk /paperclip-foo-v3/node_modules/@paperclipai/plugin-sdk && \
@@ -291,7 +291,7 @@ curl -s "http://HOST:3100/api/plugins/PLUGIN_ID/health" \
 # → {"status":"ready","healthy":true,...}
 
 # Check container logs for tool registration confirmation
-ssh nuc "sg docker -c 'docker logs paperclip-deploy-paperclip-1 --tail=20'" | grep -i "plugin"
+ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker logs paperclipai-docker-server-1 --tail=20" | grep -i "plugin"
 ```
 
 ---
@@ -417,7 +417,7 @@ Complete procedure for onboarding a new customer to a managed Paperclip SaaS ins
 
 - SSH access to the customer's NUC/VPS (add alias to `~/.ssh/config` as `<slug>`)
 - Paperclip instance running on the server with Docker
-- Docker container name: `paperclip-deploy-paperclip-1` (standard Compose name)
+- Docker container name: `paperclipai-docker-server-1` (standard name from MadeByAdem/paperclipai-docker repo)
 
 ### Step 1: Create customer config files
 
@@ -548,7 +548,7 @@ All plugins should show `"status": "ready"`.
 After MCP wiring, open Paperclip in browser and start a conversation with the agent. Ask it to list its available tools or call a simple tool like `linear_list_teams`. Watch server logs:
 
 ```bash
-ssh <slug> "DOCKER_HOST=unix:///var/run/docker.sock docker logs paperclip-deploy-paperclip-1 --tail=50 2>&1" | grep -i "mcp\|tool\|plugin"
+ssh <slug> "DOCKER_HOST=unix:///var/run/docker.sock docker logs paperclipai-docker-server-1 --tail=50 2>&1" | grep -i "mcp\|tool\|plugin"
 ```
 
 ### Subsequent deploys
@@ -602,4 +602,4 @@ toolDispatcher.registerPluginTools(pluginKey, manifest)
 toolDispatcher.registerPluginTools(pluginKey, manifest, pluginId)
 ```
 
-Apply with `docker exec paperclip-deploy-paperclip-1 bash -c "..."` or `docker cp` a patched file.
+Apply with `docker exec paperclipai-docker-server-1 bash -c "..."` or `docker cp` a patched file.

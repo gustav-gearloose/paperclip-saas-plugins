@@ -40,7 +40,7 @@ for a in json.load(sys.stdin):
 "
 
 # Watch container logs during a conversation (look for MCP handshake)
-ssh <ssh-host> "DOCKER_HOST=unix:///var/run/docker.sock docker logs paperclip-deploy-paperclip-1 --since 1m -f 2>&1 | grep -Ei 'mcp|plugin|tool|dinero|paperclip-plugin'"
+ssh <ssh-host> "DOCKER_HOST=unix:///var/run/docker.sock docker logs paperclipai-docker-server-1 --since 1m -f 2>&1 | grep -Ei 'mcp|plugin|tool|dinero|paperclip-plugin'"
 ```
 
 ## Smoke testing all plugins
