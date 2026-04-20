@@ -85,7 +85,8 @@ plugin_dir() {
     8)  echo "packages/plugin-notion" ;;
     9)  echo "packages/plugin-linear" ;;
     10) echo "packages/plugin-email" ;;
-    11) echo "__custom__" ;;
+    11) echo "packages/plugin-teams" ;;
+    12) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -102,7 +103,8 @@ plugin_env_vars() {
     8)  printf 'INTEGRATIONTOKENREF' ;;
     9)  printf 'APIKEYREF' ;;
     10) printf 'EMAILPASSWORDREF\nPLUGIN_CONFIG_emailUser\nPLUGIN_CONFIG_imapHost\nPLUGIN_CONFIG_imapPort\nPLUGIN_CONFIG_smtpHost\nPLUGIN_CONFIG_smtpPort\nPLUGIN_CONFIG_displayName' ;;
-    11) printf '' ;;
+    11) printf 'CLIENTIDREF\nCLIENTSECRETREF\nPLUGIN_CONFIG_tenantId' ;;
+    12) printf '' ;;
     *)  printf '' ;;
   esac
 }
@@ -122,7 +124,8 @@ echo "    7) Google Sheets"
 echo "    8) Notion"
 echo "    9) Linear (issue tracking)"
 echo "   10) Email (IMAP/SMTP)"
-echo "   11) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   11) Microsoft Teams"
+echo "   12) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to add? (comma-separated numbers, e.g. 1,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION

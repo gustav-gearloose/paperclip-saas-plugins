@@ -204,3 +204,26 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_displayName="Company Agent" \
   ./scripts/provision-plugin.sh <slug> packages/plugin-email
 ```
+
+---
+
+## Microsoft Teams
+
+**Env vars:** `CLIENTIDREF`, `CLIENTSECRETREF`, `PLUGIN_CONFIG_tenantId`
+
+**Where to find them:**
+1. Go to [Azure Portal](https://portal.azure.com) → Azure Active Directory → App registrations → New registration
+2. Note the **Application (client) ID** — this is your Client ID
+3. Note the **Directory (tenant) ID** — this is your Tenant ID
+4. Go to **Certificates & secrets → New client secret** — copy the **Value** (shown once)
+5. Go to **API permissions → Add a permission → Microsoft Graph → Application permissions**
+6. Add: `ChannelMessage.Read.All`, `ChannelMessage.Send`, `Channel.ReadBasic.All`, `Team.ReadBasic.All`, `ChatMessage.Read.All`, `TeamMember.Read.All`, `Chat.Read.All`
+7. Click **Grant admin consent** for the permissions
+
+```bash
+PC_PASSWORD=<pw> \
+  CLIENTIDREF=<azure-app-client-id> \
+  CLIENTSECRETREF=<azure-app-client-secret> \
+  PLUGIN_CONFIG_tenantId=<azure-tenant-id> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-teams
+```
