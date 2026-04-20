@@ -256,3 +256,20 @@ PC_PASSWORD=<pw> \
   CLIENTSECRETREF=<fortnox-client-secret> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-fortnox
 ```
+
+---
+
+## Pipedrive
+
+**Env vars:** `APITOKENREF`
+
+**Where to find them:**
+1. Log in to your Pipedrive account → click your avatar (top-right) → **Personal preferences**
+2. Go to the **API** tab
+3. Copy your **personal API token** (shown at the top)
+
+```bash
+PC_PASSWORD=<pw> \
+  APITOKENREF=<pipedrive-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-pipedrive
+```

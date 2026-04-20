@@ -266,7 +266,8 @@ plugin_dir() {
     10) echo "packages/plugin-email" ;;
     11) echo "packages/plugin-teams" ;;
     12) echo "packages/plugin-fortnox" ;;
-    13) echo "__custom__" ;;
+    13) echo "packages/plugin-pipedrive" ;;
+    14) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -286,7 +287,8 @@ plugin_env_vars() {
     10) printf 'EMAILPASSWORDREF\nPLUGIN_CONFIG_emailUser\nPLUGIN_CONFIG_imapHost\nPLUGIN_CONFIG_imapPort\nPLUGIN_CONFIG_smtpHost\nPLUGIN_CONFIG_smtpPort\nPLUGIN_CONFIG_displayName' ;;
     11) printf 'CLIENTIDREF\nCLIENTSECRETREF\nPLUGIN_CONFIG_tenantId' ;;
     12) printf 'ACCESSTOKENREF\nREFRESHTOKENREF\nCLIENTIDREF\nCLIENTSECRETREF' ;;
-    13) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    13) printf 'APITOKENREF' ;;
+    14) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -308,14 +310,15 @@ echo "    9) Linear (issue tracking)"
 echo "   10) Email (IMAP/SMTP)"
 echo "   11) Microsoft Teams"
 echo "   12) Fortnox (accounting — SE)"
-echo "   13) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   13) Pipedrive (CRM)"
+echo "   14) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to install? (comma-separated numbers, e.g. 1,2,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12)  # 13 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13)  # 14 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi

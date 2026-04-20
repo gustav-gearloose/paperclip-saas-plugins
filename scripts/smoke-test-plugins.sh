@@ -120,6 +120,7 @@ SMOKE_TOOLS=(
   "email|email_list_folders|{}"
   "teams|teams_list_teams|{}"
   "fortnox|fortnox_list_customers|{}"
+  "pipedrive|pipedrive_list_pipelines|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
