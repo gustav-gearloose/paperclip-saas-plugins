@@ -138,13 +138,23 @@ info "Written: $MCP_CONFIG_PATH"
 # ── step 5: verify proxy starts ───────────────────────────────────────────────
 
 info "Verifying proxy starts inside container (6s test)..."
-proxy_out=$(ssh "$SSH_HOST" "PC_PW='$PC_PASSWORD' $DOCKER exec \
-  -e PC_HOST=$PC_HOST_INTERNAL \
-  -e PC_EMAIL=$PC_EMAIL \
-  -e PC_PASSWORD=\$PC_PW \
-  -e PC_COMPANY_ID=$PC_COMPANY_ID \
-  -e PC_AGENT_ID=$AGENT_ID \
-  $CONTAINER timeout 6 node $PROXY_PATH/index.js 2>&1" || true)
+# base64-encode password to avoid any shell quoting issues with special chars
+_PW_B64=$(printf '%s' "$PC_PASSWORD" | base64)
+# Write a one-shot runner into the container so we never interpolate the password into a shell string
+proxy_out=$(ssh "$SSH_HOST" "
+  RUNNER=\$(mktemp /tmp/pc_proxy_test_XXXXXX.sh)
+  printf '%s\n' '#!/bin/sh' \
+    'export PC_PASSWORD=\$(echo $_PW_B64 | base64 -d)' \
+    'export PC_HOST=$PC_HOST_INTERNAL' \
+    'export PC_EMAIL=$PC_EMAIL' \
+    'export PC_COMPANY_ID=$PC_COMPANY_ID' \
+    'export PC_AGENT_ID=$AGENT_ID' \
+    'exec timeout 6 node $PROXY_PATH/index.js' > \$RUNNER
+  $DOCKER cp \$RUNNER $CONTAINER:\$RUNNER
+  $DOCKER exec $CONTAINER sh \$RUNNER 2>&1 || true
+  $DOCKER exec $CONTAINER rm -f \$RUNNER
+  rm -f \$RUNNER
+" 2>&1 || true)
 if echo "$proxy_out" | grep -qi "Missing required env\|Cannot find module\|SyntaxError\|Error:"; then
   echo "$proxy_out"
   die "Proxy failed to start — check output above"
