@@ -1035,3 +1035,26 @@ CLIENTIDREF=<secret-uuid> \
   PLUGIN_CONFIG_realmId=<realm-id> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-quickbooks
 ```
+
+## 54. FreshBooks
+
+**Where to get credentials:**
+1. Go to [my.freshbooks.com/#/developer](https://my.freshbooks.com/#/developer) → Create an app
+2. Copy the **Client ID** and **Client Secret**
+3. Complete the OAuth2 authorization code flow (scopes: `user:profile:read user:projects:read user:invoices:read user:invoices:write user:clients:read user:clients:write user:expenses:read user:payments:read user:time_entries:read`) — redirect URI: `https://gearloose.dk/auth/freshbooks/callback` or any registered URI
+4. Store the **access token's paired refresh token** as a Paperclip secret
+5. Note: Refresh tokens rotate on each use — the plugin stores the latest automatically
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `CLIENTIDREF` | UUID of the Paperclip secret holding the FreshBooks OAuth2 client ID |
+| `CLIENTSECRETREF` | UUID of the Paperclip secret holding the FreshBooks OAuth2 client secret |
+| `REFRESHTOKENREF` | UUID of the Paperclip secret holding the FreshBooks OAuth2 refresh token |
+
+```bash
+CLIENTIDREF=<secret-uuid> \
+  CLIENTSECRETREF=<secret-uuid> \
+  REFRESHTOKENREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-freshbooks
+```
