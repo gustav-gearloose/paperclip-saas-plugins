@@ -273,7 +273,8 @@ plugin_dir() {
     17) echo "packages/plugin-freshdesk" ;;
     18) echo "packages/plugin-stripe" ;;
     19) echo "packages/plugin-woocommerce" ;;
-    20) echo "__custom__" ;;
+    20) echo "packages/plugin-shopify" ;;
+    21) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -300,7 +301,8 @@ plugin_env_vars() {
     17) printf 'APIKEYREF\nPLUGIN_CONFIG_domain' ;;
     18) printf 'SECRETKEYREF' ;;
     19) printf 'CONSUMERKEYREF\nCONSUMERSECRETREF\nPLUGIN_CONFIG_siteUrl' ;;
-    20) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    20) printf 'ACCESSTOKENREF\nPLUGIN_CONFIG_shopDomain' ;;
+    21) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -329,14 +331,15 @@ echo "   16) GitHub (repositories, issues, PRs, code search)"
 echo "   17) Freshdesk (customer support)"
 echo "   18) Stripe (payments, subscriptions, invoices)"
 echo "   19) WooCommerce (e-commerce orders, products, customers)"
-echo "   20) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   20) Shopify (e-commerce orders, products, customers)"
+echo "   21) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to install? (comma-separated numbers, e.g. 1,2,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19)  # 20 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)  # 21 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi

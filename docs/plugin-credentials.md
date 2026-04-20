@@ -387,3 +387,23 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_siteUrl=https://myshop.com \
   ./scripts/provision-plugin.sh <slug> packages/plugin-woocommerce
 ```
+
+---
+
+## Shopify
+
+**Env vars:** `ACCESSTOKENREF`, `PLUGIN_CONFIG_shopDomain`
+
+**Where to find them:**
+1. Log in to your Shopify Admin → **Apps → Develop apps** (enable developer tools if prompted)
+2. Click **Create an app**, give it a name, then go to **Configuration → Admin API integration**
+3. Select scopes: `read_orders`, `read_products`, `write_products`, `read_customers`, `read_price_rules`, `read_inventory`, `read_locations`
+4. Click **Install app** — copy the **Admin API access token** (shown only once)
+5. Your **shop domain** is `yourstore.myshopify.com`
+
+```bash
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<shopify-admin-access-token> \
+  PLUGIN_CONFIG_shopDomain=yourstore.myshopify.com \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-shopify
+```
