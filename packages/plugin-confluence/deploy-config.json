@@ -1,0 +1,12 @@
+{
+  "configJson": {
+    "email": "",
+    "domain": ""
+  },
+  "secretRefs": {
+    "apiTokenRef": {
+      "name": "confluence-api-token",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    }
+  }
+}

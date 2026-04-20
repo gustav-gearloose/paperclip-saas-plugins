@@ -150,6 +150,7 @@ SMOKE_TOOLS=(
   "outlook|outlook_list_folders|{}"
   "onedrive|onedrive_list_items|{}"
   "google-drive|drive_list_files|{}"
+  "confluence|confluence_list_spaces|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

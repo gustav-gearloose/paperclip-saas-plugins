@@ -790,3 +790,24 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_delegatedUser=<user@company.com> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-google-drive
 ```
+
+---
+
+## Confluence (pages + knowledge base)
+
+**Env vars:** `APITOKENREF`, `PLUGIN_CONFIG_email`, `PLUGIN_CONFIG_domain`
+
+> Uses the **same Atlassian API token** as Jira — if you already have Jira set up, no new token needed.
+
+**Where to find them:**
+1. Go to [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) → Create API token
+2. **domain**: your Atlassian subdomain, e.g. `mycompany` (from `mycompany.atlassian.net`)
+3. **email**: the Atlassian account email that owns the token
+
+```bash
+PC_PASSWORD=<pw> \
+  APITOKENREF=<secret-uuid> \
+  PLUGIN_CONFIG_email=<you@company.com> \
+  PLUGIN_CONFIG_domain=<mycompany> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-confluence
+```
