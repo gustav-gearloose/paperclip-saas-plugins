@@ -332,9 +332,10 @@ if [[ ${#SELECTED_NUMS[@]} -gt 0 ]]; then
         fi
 
         info "  Building plugin-$custom_name (npm install + tsc)..."
-        if ! (cd "$custom_dir" && npm install --ignore-scripts && npm run build) 2>&1; then
+        build_out=$( (cd "$custom_dir" && npm install --ignore-scripts && npm run build) 2>&1) || {
+          echo "$build_out"
           warn "  Build failed — skipping plugin-$custom_name"; continue
-        fi
+        }
 
         info "  Validating plugin-$custom_name..."
         "$SCRIPT_DIR/validate-plugins.sh" "$custom_dir" || warn "  Validation warnings above — continuing anyway"
