@@ -10,7 +10,7 @@
 #   PC_PASSWORD    Paperclip login password
 #   PC_COMPANY_ID  Paperclip company UUID
 #   SSH_HOST       SSH host for the NUC/server running the container
-#   CONTAINER      Docker container name (default: paperclipai-server-1)
+#   CONTAINER      Docker container name (default: paperclipai-docker-server-1)
 #
 # Example:
 #   PC_HOST=http://localhost:3100 \
@@ -27,7 +27,7 @@ set -euo pipefail
 
 PLUGIN_DIR="${1:?Usage: $0 <plugin-package-dir>}"
 PLUGIN_DIR="$(cd "$PLUGIN_DIR" && pwd)"
-CONTAINER="${CONTAINER:-paperclipai-server-1}"
+CONTAINER="${CONTAINER:-paperclipai-docker-server-1}"
 DOCKER="DOCKER_HOST=unix:///var/run/docker.sock docker"
 
 # ── helpers ──────────────────────────────────────────────────────────────────

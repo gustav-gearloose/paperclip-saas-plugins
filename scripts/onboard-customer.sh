@@ -71,7 +71,7 @@ ask "Paperclip URL as seen from inside the server (default: http://localhost:310
 read -r PC_HOST_INPUT
 PC_HOST="${PC_HOST_INPUT:-http://localhost:3100}"
 
-CONTAINER="paperclipai-server-1"
+CONTAINER="paperclipai-docker-server-1"
 ask "Docker container name (default: $CONTAINER):"
 read -r CONTAINER_INPUT
 [[ -n "$CONTAINER_INPUT" ]] && CONTAINER="$CONTAINER_INPUT"
