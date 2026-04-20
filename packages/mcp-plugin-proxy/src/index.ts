@@ -211,7 +211,7 @@ async function main(): Promise<void> {
       }
       const text = typeof inner?.content === "string"
         ? inner.content
-        : JSON.stringify(resp, null, 2);
+        : JSON.stringify(inner?.content ?? inner?.data ?? inner, null, 2);
       return { content: [{ type: "text", text }] };
     } catch (err) {
       return {
