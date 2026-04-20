@@ -1241,3 +1241,23 @@ APITOKENREF=<secret-uuid> \
 APIKEYREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-teamtailor
 ```
+
+## 64. Workable
+
+**Where to get credentials:**
+1. Log in to Workable → Settings → Integrations → API Access Tokens
+2. Click **Generate Token** — assign scopes (r_jobs, r_candidates, w_candidates at minimum)
+3. Copy the token immediately (shown only once)
+4. Your **subdomain** is the part before `.workable.com` in your account URL
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `ACCESSTOKENREF` | UUID of the Paperclip secret holding the Workable API access token |
+| `PLUGIN_CONFIG_subdomain` | Your Workable subdomain (e.g. `acmecorp`) |
+
+```bash
+ACCESSTOKENREF=<secret-uuid> \
+  PLUGIN_CONFIG_subdomain=<subdomain> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-workable
+```

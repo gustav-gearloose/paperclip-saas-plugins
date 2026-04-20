@@ -190,6 +190,7 @@ SMOKE_TOOLS=(
   "tripletex|tripletex_list_customers|{}"
   "recruitee|recruitee_list_offers|{}"
   "teamtailor|teamtailor_list_jobs|{}"
+  "workable|workable_list_jobs|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
