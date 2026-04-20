@@ -285,7 +285,8 @@ plugin_dir() {
     29) echo "packages/plugin-typeform" ;;
     30) echo "packages/plugin-calendly" ;;
     31) echo "packages/plugin-mailchimp" ;;
-    32) echo "__custom__" ;;
+    32) echo "packages/plugin-activecampaign" ;;
+    33) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -324,7 +325,8 @@ plugin_env_vars() {
     29) printf 'APITOKENREF' ;;
     30) printf 'APITOKENREF' ;;
     31) printf 'APIKEYREF\nPLUGIN_CONFIG_serverPrefix' ;;
-    32) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    32) printf 'APIKEYREF\nPLUGIN_CONFIG_accountUrl' ;;
+    33) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -365,14 +367,15 @@ echo "   28) Harvest (time tracking — entries, projects, clients, invoices)"
 echo "   29) Typeform (surveys — list forms, read responses, insights)"
 echo "   30) Calendly (scheduling — event types, meetings, invitees)"
 echo "   31) Mailchimp (email marketing — audiences, members, campaigns)"
-echo "   32) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   32) ActiveCampaign (CRM & automation — contacts, deals, automations)"
+echo "   33) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to install? (comma-separated numbers, e.g. 1,2,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31)  # 32 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32)  # 33 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi

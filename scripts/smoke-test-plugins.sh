@@ -139,6 +139,7 @@ SMOKE_TOOLS=(
   "typeform|typeform_list_forms|{}"
   "calendly|calendly_get_current_user|{}"
   "mailchimp|mailchimp_get_account_info|{}"
+  "activecampaign|activecampaign_list_contacts|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

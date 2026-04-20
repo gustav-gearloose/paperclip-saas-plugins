@@ -595,3 +595,19 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_serverPrefix=us14 \
   ./scripts/provision-plugin.sh <slug> packages/plugin-mailchimp
 ```
+
+## ActiveCampaign (CRM & automation)
+
+**Env vars:** `APIKEYREF`, `PLUGIN_CONFIG_accountUrl`
+
+**Where to find them:**
+1. Log in to ActiveCampaign → **Settings → Developer**
+2. Copy your **API Key** and note your **API URL** (e.g. `https://youraccountname.api-us1.com`)
+3. Store the API key as a Paperclip secret; set `accountUrl` to the API URL
+
+```bash
+PC_PASSWORD=<pw> \
+  APIKEYREF=<activecampaign-api-key> \
+  PLUGIN_CONFIG_accountUrl=https://youraccountname.api-us1.com \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-activecampaign
+```

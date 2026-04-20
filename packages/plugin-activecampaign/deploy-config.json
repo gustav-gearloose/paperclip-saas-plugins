@@ -1,0 +1,6 @@
+{
+  "configJson": { "accountUrl": "REPLACE_WITH_ACTIVECAMPAIGN_ACCOUNT_URL" },
+  "secretRefs": {
+    "apiKeyRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}
