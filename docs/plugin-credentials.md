@@ -941,37 +941,3 @@ APITOKENREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-toggl
 ```
 
-## Harvest (50)
-
-**Where to get credentials:**
-1. Log in to Harvest → click your avatar → **Developers**
-2. Create a **Personal Access Token** — copy the token and your **Account ID** shown on the same page
-   (Account ID is also visible at `https://id.getharvest.com/` after login)
-
-**Env vars:**
-| Variable | Value |
-|----------|-------|
-| `APITOKENREF` | UUID of the Paperclip secret holding the Harvest personal access token |
-| `PLUGIN_CONFIG_accountId` | Your numeric Harvest Account ID (plain value, not a secret) |
-
-```bash
-APITOKENREF=<secret-uuid> \
-  PLUGIN_CONFIG_accountId=<account-id> \
-  ./scripts/provision-plugin.sh <slug> packages/plugin-harvest
-```
-
-## Typeform (51)
-
-**Where to get credentials:**
-1. Log in to Typeform → click your avatar → **Settings** → **Personal tokens**
-2. Click **Generate a new token** — give it a name, set expiry, and copy the token
-
-**Env vars:**
-| Variable | Value |
-|----------|-------|
-| `APITOKENREF` | UUID of the Paperclip secret holding the Typeform personal access token |
-
-```bash
-APITOKENREF=<secret-uuid> \
-  ./scripts/provision-plugin.sh <slug> packages/plugin-typeform
-```
