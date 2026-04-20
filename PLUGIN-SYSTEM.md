@@ -191,6 +191,132 @@ All built, TypeScript-clean, manifest+worker parity verified by `scripts/validat
 
 **Key constraint:** All plugins use zero external npm deps — only Node builtins + `@paperclipai/plugin-sdk`.
 
+## Provisioning Cheatsheet — One Command Per Plugin
+
+All commands use `provision-plugin.sh` which:
+1. Creates Paperclip secrets from the env vars you pass
+2. Writes `customers/<slug>/plugin-<name>.json` with the resulting UUIDs
+3. Deploys the plugin
+
+Run from the repo root. `PC_PASSWORD` always required.
+
+### Billy
+
+```bash
+PC_PASSWORD=<pw> \
+ACCESSTOKENREF=<billy-api-token> \
+  ./scripts/provision-plugin.sh <customer-slug> packages/plugin-billy
+```
+
+Get token: Billy → Indstillinger → API → Generate token.
+
+### Dinero
+
+```bash
+PC_PASSWORD=<pw> \
+DINEROCLIENTIDREF=<client-id> \
+DINEROCLIENTSECRETREF=<client-secret> \
+DINEROAPIKEYREF=<api-key> \
+PLUGIN_CONFIG_dineroOrgId=<org-id> \
+  ./scripts/provision-plugin.sh <customer-slug> packages/plugin-dinero
+```
+
+Get creds: Dinero → Indstillinger → API → Opret API-adgang. Org ID from the URL (numeric).
+
+### e-conomic
+
+```bash
+PC_PASSWORD=<pw> \
+APPSECRETTOKENREF=<app-secret-token> \
+AGREEMENTGRANTTOKENREF=<agreement-grant-token> \
+  ./scripts/provision-plugin.sh <customer-slug> packages/plugin-economic
+```
+
+App Secret Token: your developer token from apps.e-conomic.com (reused across customers).
+Agreement Grant Token: customer generates from e-conomic → Indstillinger → API-adgang.
+
+### Email (IMAP/SMTP)
+
+```bash
+PC_PASSWORD=<pw> \
+EMAILPASSWORDREF=<email-password-or-app-password> \
+PLUGIN_CONFIG_emailUser=agent@company.com \
+PLUGIN_CONFIG_imapHost=imap.gmail.com \
+PLUGIN_CONFIG_imapPort=993 \
+PLUGIN_CONFIG_smtpHost=smtp.gmail.com \
+PLUGIN_CONFIG_smtpPort=587 \
+PLUGIN_CONFIG_displayName="Company AI Agent" \
+  ./scripts/provision-plugin.sh <customer-slug> packages/plugin-email
+```
+
+For Gmail: use App Password (Google Account → Security → 2FA → App passwords).
+
+### Google Sheets
+
+```bash
+PC_PASSWORD=<pw> \
+SERVICEACCOUNTJSONREF='{"type":"service_account","project_id":"...","private_key":"..."}' \
+  ./scripts/provision-plugin.sh <customer-slug> packages/plugin-google-sheets
+```
+
+Get JSON key: Google Cloud Console → IAM → Service Accounts → Keys → Add Key → JSON.
+Share target spreadsheets with the service account email (Editor role).
+
+### HubSpot
+
+```bash
+PC_PASSWORD=<pw> \
+ACCESSTOKENREF=<hubspot-private-app-token> \
+  ./scripts/provision-plugin.sh <customer-slug> packages/plugin-hubspot
+```
+
+Get token: HubSpot → Settings → Integrations → Private Apps → Create → copy Access Token.
+
+### Linear
+
+```bash
+PC_PASSWORD=<pw> \
+APIKEYREF=<linear-api-key> \
+  ./scripts/provision-plugin.sh <customer-slug> packages/plugin-linear
+```
+
+Get key: Linear → Settings → API → Personal API keys → Create key.
+
+### Notion
+
+```bash
+PC_PASSWORD=<pw> \
+INTEGRATIONTOKENREF=<notion-integration-token> \
+  ./scripts/provision-plugin.sh <customer-slug> packages/plugin-notion
+```
+
+Get token: notion.so → Settings → Connections → Develop or manage integrations → New internal integration → copy the token.
+Share each Notion database/page with the integration (page menu → Connect to).
+
+### Slack
+
+```bash
+PC_PASSWORD=<pw> \
+BOTTOKENREF=<slack-bot-oauth-token> \
+  ./scripts/provision-plugin.sh <customer-slug> packages/plugin-slack
+```
+
+Get token: api.slack.com/apps → Create App → OAuth & Permissions → Bot Token Scopes:
+`channels:read channels:history chat:write files:write reactions:write search:read users:read`.
+Install to workspace → copy Bot User OAuth Token (starts with xoxb-).
+
+### Zendesk
+
+```bash
+PC_PASSWORD=<pw> \
+APITOKENREF=<zendesk-api-token> \
+PLUGIN_CONFIG_subdomain=<your-subdomain> \
+PLUGIN_CONFIG_email=<admin-email> \
+  ./scripts/provision-plugin.sh <customer-slug> packages/plugin-zendesk
+```
+
+Get token: Zendesk → Admin → Apps & Integrations → APIs → Zendesk API → Add API token.
+
 ### Google Sheets — Setup Notes
 
 Uses Google service account JWT auth (no browser OAuth needed — ideal for headless agents).
