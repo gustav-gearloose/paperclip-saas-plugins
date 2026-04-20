@@ -110,7 +110,8 @@ plugin_dir() {
     33) echo "packages/plugin-twilio" ;;
     34) echo "packages/plugin-brevo" ;;
     35) echo "packages/plugin-sendgrid" ;;
-    36) echo "__custom__" ;;
+    36) echo "packages/plugin-klaviyo" ;;
+    37) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -152,7 +153,8 @@ plugin_env_vars() {
     33) printf 'AUTHTOKENREF\nPLUGIN_CONFIG_accountSid' ;;
     34) printf 'APIKEYREF' ;;
     35) printf 'APIKEYREF' ;;
-    36) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    36) printf 'APIKEYREF' ;;
+    37) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -197,14 +199,15 @@ echo "   32) ActiveCampaign (CRM & automation — contacts, deals, automations)"
 echo "   33) Twilio (SMS & voice — send messages, calls, phone numbers)"
 echo "   34) Brevo (email marketing — transactional email, contacts, campaigns)"
 echo "   35) SendGrid (email — transactional, marketing contacts, templates, stats)"
-echo "   36) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   36) Klaviyo (email/SMS marketing — profiles, lists, campaigns, flows, events)"
+echo "   37) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to add? (comma-separated numbers, e.g. 1,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35)  # 36 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36)  # 37 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi

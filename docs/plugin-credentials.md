@@ -656,3 +656,18 @@ PC_PASSWORD=<pw> \
   APIKEYREF=<sendgrid-api-key> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-sendgrid
 ```
+
+## Klaviyo (email/SMS marketing)
+
+**Env vars:** `APIKEYREF`
+
+**Where to find them:**
+1. Log in to Klaviyo → Account → Settings → **API Keys**
+2. Create a **Private API key** (Full Access or select the scopes you need)
+3. Store it as a Paperclip secret
+
+```bash
+PC_PASSWORD=<pw> \
+  APIKEYREF=<klaviyo-private-api-key> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-klaviyo
+```

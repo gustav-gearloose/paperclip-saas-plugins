@@ -143,6 +143,7 @@ SMOKE_TOOLS=(
   "twilio|twilio_get_account_info|{}"
   "brevo|brevo_get_account_info|{}"
   "sendgrid|sendgrid_list_lists|{}"
+  "klaviyo|klaviyo_list_lists|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
