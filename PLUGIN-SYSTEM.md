@@ -172,6 +172,20 @@ Body: { "adapterConfig": { "extraArgs": ["--settings", "/paperclip/mcp-proxy-con
 --settings <path>   # loads additional settings (mcpServers, etc.) from JSON file
 ```
 
+### VPS + Caddy: PC_ORIGIN requirement
+
+When Paperclip runs behind Caddy with HTTPS, it validates the HTTP `Origin` header against
+`PAPERCLIP_PUBLIC_URL`. The MCP proxy connects to `http://localhost:3100` internally, but must
+send the public HTTPS domain as Origin — otherwise Paperclip's CSRF check may reject API calls.
+
+**Fix:** Set `PC_ORIGIN=https://paperclip.customer.com` in `customers/<slug>.env`.
+
+`wire-mcp-to-customer.sh` reads `PC_ORIGIN` from the env file and injects it into the MCP config
+JSON. The proxy (`packages/mcp-plugin-proxy/src/index.ts`) reads `PC_ORIGIN` at startup and
+uses it for all `Origin:` headers while still connecting via `PC_HOST=http://localhost:3100`.
+
+For NUC/LAN installs, leave `PC_ORIGIN` unset or equal to `PC_HOST` — it defaults to `PC_HOST`.
+
 ## Plugin Library (as of 2026-04-20) — 10 plugins, 95 tools
 
 All built, TypeScript-clean, manifest+worker parity verified by `scripts/validate-plugins.sh`.
