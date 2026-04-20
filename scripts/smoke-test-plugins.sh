@@ -140,6 +140,7 @@ SMOKE_TOOLS=(
   "calendly|calendly_get_current_user|{}"
   "mailchimp|mailchimp_get_account_info|{}"
   "activecampaign|activecampaign_list_contacts|{}"
+  "twilio|twilio_get_account_info|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

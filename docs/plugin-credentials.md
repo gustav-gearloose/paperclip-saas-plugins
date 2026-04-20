@@ -611,3 +611,18 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_accountUrl=https://youraccountname.api-us1.com \
   ./scripts/provision-plugin.sh <slug> packages/plugin-activecampaign
 ```
+
+## Twilio (SMS & voice)
+
+**Env vars:** `AUTHTOKENREF`, `PLUGIN_CONFIG_accountSid`
+
+**Where to find them:**
+1. Log in to Twilio Console → the **Account SID** and **Auth Token** are on the dashboard homepage
+2. Store the Auth Token as a Paperclip secret; set `accountSid` to the Account SID (starts with `AC...`)
+
+```bash
+PC_PASSWORD=<pw> \
+  AUTHTOKENREF=<twilio-auth-token> \
+  PLUGIN_CONFIG_accountSid=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-twilio
+```

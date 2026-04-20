@@ -1,0 +1,6 @@
+{
+  "configJson": { "accountSid": "REPLACE_WITH_TWILIO_ACCOUNT_SID" },
+  "secretRefs": {
+    "authTokenRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}
