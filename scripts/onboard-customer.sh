@@ -64,7 +64,7 @@ ask "Paperclip admin password (not stored in .env, goes to .secrets):"
 read -rs PC_PASSWORD
 echo ""
 
-ask "Paperclip company UUID (from Settings → General in the UI):"
+ask "Paperclip company UUID (press Enter to auto-detect after login):"
 read -r PC_COMPANY_ID
 
 ask "Paperclip URL as seen from inside the server (default: http://localhost:3100):"
@@ -121,16 +121,47 @@ else
   die "Authentication failed. Check email/password and that Paperclip is running."
 fi
 
-# ── validate company ID ───────────────────────────────────────────────────────
+# ── auto-detect or validate company ID ───────────────────────────────────────
 
-COMPANY_CHECK=$(ssh "$SSH_HOST" "curl -s '$PC_HOST/api/companies/$PC_COMPANY_ID' \
-  -b /tmp/pc_onboard_cookies_$CUSTOMER.txt \
-  -H 'Origin: $PC_HOST'" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('name','?'))" 2>/dev/null || echo "")
+if [[ -z "$PC_COMPANY_ID" ]]; then
+  info "Auto-detecting company ID from Paperclip API..."
+  DETECTED=$(ssh "$SSH_HOST" "curl -s '$PC_HOST/api/companies' \
+    -b /tmp/pc_onboard_cookies_$CUSTOMER.txt \
+    -H 'Origin: $PC_HOST'" 2>/dev/null \
+    | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if isinstance(data, list) and data:
+        print(data[0]['id'] + '|' + data[0].get('name', '?'))
+    elif isinstance(data, dict) and data.get('id'):
+        print(data['id'] + '|' + data.get('name', '?'))
+    else:
+        print('')
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
 
-if [[ -n "$COMPANY_CHECK" && "$COMPANY_CHECK" != "?" ]]; then
-  ok "Company found: $COMPANY_CHECK"
+  if [[ -n "$DETECTED" ]]; then
+    PC_COMPANY_ID="${DETECTED%%|*}"
+    COMPANY_NAME="${DETECTED##*|}"
+    ok "Auto-detected company: $COMPANY_NAME ($PC_COMPANY_ID)"
+  else
+    warn "Could not auto-detect company ID from GET /api/companies"
+    ask "Enter company UUID manually (from Paperclip Settings → General):"
+    read -r PC_COMPANY_ID
+    [[ -n "$PC_COMPANY_ID" ]] || die "Company ID is required"
+  fi
 else
-  warn "Could not verify company ID $PC_COMPANY_ID (may still be correct)"
+  COMPANY_CHECK=$(ssh "$SSH_HOST" "curl -s '$PC_HOST/api/companies/$PC_COMPANY_ID' \
+    -b /tmp/pc_onboard_cookies_$CUSTOMER.txt \
+    -H 'Origin: $PC_HOST'" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('name','?'))" 2>/dev/null || echo "")
+
+  if [[ -n "$COMPANY_CHECK" && "$COMPANY_CHECK" != "?" ]]; then
+    ok "Company found: $COMPANY_CHECK"
+  else
+    warn "Could not verify company ID $PC_COMPANY_ID (may still be correct)"
+  fi
 fi
 
 # ── write config files ────────────────────────────────────────────────────────
