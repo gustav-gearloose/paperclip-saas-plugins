@@ -32,7 +32,7 @@ SSH_HOST="${1:?Usage: $0 <ssh-host> <domain> [anthropic-api-key]}"
 DOMAIN="${2:?Usage: $0 <ssh-host> <domain> [anthropic-api-key]}"
 ANTHROPIC_API_KEY="${3:-}"
 
-PAPERCLIP_REPO="https://github.com/gearloose/paperclip.git"
+PAPERCLIP_REPO="https://github.com/gustav-gearloose/paperclip.git"
 PAPERCLIP_DIR="/opt/paperclip"
 PAPERCLIP_DATA="/paperclip-data"
 PAPERCLIP_PORT=3100

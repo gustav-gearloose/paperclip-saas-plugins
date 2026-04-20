@@ -405,7 +405,7 @@ Common causes:
 
 ### "Tools visible on /api/plugins/tools but execute returns worker not running"
 
-This was a Paperclip bug (pluginDbId lookup) fixed in the `gearloose/paperclip` fork. If it recurs, check the fork is up to date:
+This was a Paperclip bug (pluginDbId lookup) fixed in the `gustav-gearloose/paperclip` fork. If it recurs, check the fork is up to date:
 ```bash
 ssh <ssh-host> "cd /opt/paperclip && git log --oneline -5"
 ```
