@@ -344,6 +344,74 @@ ssh nuc "DOCKER_HOST=unix:///var/run/docker.sock docker logs paperclipai-docker-
 
 ---
 
+## Plugin State (`ctx.state`) — Rotating OAuth2 Tokens
+
+Some OAuth2 providers (e.g. Fortnox) rotate the refresh token on every use — issuing a new refresh token with each access token refresh response. If the plugin only persists the initial tokens in Paperclip secrets and the container restarts, it will try to use the now-invalid original refresh token and get locked out permanently.
+
+**Solution**: use `ctx.state` to cache refreshed tokens between container restarts.
+
+### Required capabilities
+
+```ts
+capabilities: [
+  // ...other caps...
+  "plugin.state.read",
+  "plugin.state.write",
+],
+```
+
+### Worker pattern
+
+```ts
+const STATE_KEY = { scopeKind: "instance" as const, stateKey: "my-tokens" };
+
+// After resolving secrets from config:
+try {
+  const cached = await ctx.state.get(STATE_KEY) as { accessToken: string; refreshToken: string } | null;
+  if (cached?.accessToken && cached?.refreshToken) {
+    accessToken = cached.accessToken;
+    refreshToken = cached.refreshToken;
+    ctx.logger.info("Loaded tokens from state cache");
+  }
+} catch {
+  // state not available yet — use secrets as-is
+}
+
+const client = new MyApiClient({
+  accessToken,
+  refreshToken,
+  onTokensRefreshed: async (tokens) => {
+    try {
+      await ctx.state.set(STATE_KEY, tokens);
+    } catch (err) {
+      ctx.logger.error(`Failed to persist refreshed tokens: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  },
+});
+```
+
+### API client pattern
+
+In the client, `refreshToken` must be mutable (not `readonly`) and updated before calling `onTokensRefreshed`:
+
+```ts
+private async refreshAccessToken(): Promise<void> {
+  // ... fetch call ...
+  const data = await res.json() as { access_token: string; refresh_token?: string };
+  this.accessToken = data.access_token;
+  if (data.refresh_token) {
+    this.refreshToken = data.refresh_token;  // update in-memory before persisting
+  }
+  if (this.onTokensRefreshed) {
+    await this.onTokensRefreshed({ accessToken: this.accessToken, refreshToken: this.refreshToken });
+  }
+}
+```
+
+**`ctx.state` vs secrets**: Secrets store the initial bootstrap tokens (set once by the operator); `ctx.state` stores the live rotated tokens (updated automatically by the plugin). After first successful token refresh, the state cache takes over and the secrets become stale but harmless. State is stored in the Docker volume and survives container rebuilds and `purge=false` plugin reinstalls.
+
+---
+
 ## Dinero Plugin — Auth Notes
 
 Dinero uses OAuth2 password grant with Basic auth. The correct endpoint is:
@@ -548,10 +616,12 @@ PC_PASSWORD=<pw> \
   CLIENTSECRETREF=<azure-client-secret> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-teams
 
-# Fortnox (2 secrets — access + refresh token)
+# Fortnox (4 secrets — OAuth2 tokens + client credentials)
 PC_PASSWORD=<pw> \
   ACCESSTOKENREF=<fortnox-access-token> \
   REFRESHTOKENREF=<fortnox-refresh-token> \
+  CLIENTIDREF=<fortnox-client-id> \
+  CLIENTSECRETREF=<fortnox-client-secret> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-fortnox
 
 # Pipedrive (1 secret)

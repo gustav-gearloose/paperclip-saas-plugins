@@ -13,6 +13,8 @@ const manifest: PaperclipPluginManifestV1 = {
     "secrets.read-ref",
     "agent.tools.register",
     "instance.settings.register",
+    "plugin.state.read",
+    "plugin.state.write",
   ],
   entrypoints: {
     worker: "./dist/worker.js",

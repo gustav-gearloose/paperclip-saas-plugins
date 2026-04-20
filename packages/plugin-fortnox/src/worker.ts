@@ -36,8 +36,33 @@ const plugin = definePlugin({
       return;
     }
 
+    // Fortnox rotates refresh tokens on every use — prefer state-cached tokens over secrets
+    const STATE_KEY = { scopeKind: "instance" as const, stateKey: "fortnox-tokens" };
+    try {
+      const cached = await ctx.state.get(STATE_KEY) as { accessToken: string; refreshToken: string } | null;
+      if (cached?.accessToken && cached?.refreshToken) {
+        accessToken = cached.accessToken;
+        refreshToken = cached.refreshToken;
+        ctx.logger.info("Fortnox plugin: loaded tokens from state cache");
+      }
+    } catch {
+      // state not available yet — use secrets as-is
+    }
+
     ctx.logger.info("Fortnox plugin: secrets resolved, registering tools");
-    const client = new FortnoxClient({ accessToken, refreshToken, clientId, clientSecret });
+    const client = new FortnoxClient({
+      accessToken,
+      refreshToken,
+      clientId,
+      clientSecret,
+      onTokensRefreshed: async (tokens) => {
+        try {
+          await ctx.state.set(STATE_KEY, tokens);
+        } catch (err) {
+          ctx.logger.error(`Fortnox plugin: failed to persist refreshed tokens: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      },
+    });
 
     ctx.tools.register(
       "fortnox_list_invoices",

@@ -6,19 +6,22 @@ export interface FortnoxClientConfig {
   refreshToken: string;
   clientId: string;
   clientSecret: string;
+  onTokensRefreshed?: (tokens: { accessToken: string; refreshToken: string }) => Promise<void>;
 }
 
 export class FortnoxClient {
   private accessToken: string;
-  private readonly refreshToken: string;
+  private refreshToken: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
+  private readonly onTokensRefreshed?: (tokens: { accessToken: string; refreshToken: string }) => Promise<void>;
 
   constructor(config: FortnoxClientConfig) {
     this.accessToken = config.accessToken;
     this.refreshToken = config.refreshToken;
     this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
+    this.onTokensRefreshed = config.onTokensRefreshed;
   }
 
   private async refreshAccessToken(): Promise<void> {
@@ -38,8 +41,14 @@ export class FortnoxClient {
     if (!res.ok) {
       throw new Error(`Token refresh failed: ${res.status} ${await res.text()}`);
     }
-    const data = await res.json() as { access_token: string };
+    const data = await res.json() as { access_token: string; refresh_token?: string };
     this.accessToken = data.access_token;
+    if (data.refresh_token) {
+      this.refreshToken = data.refresh_token;
+    }
+    if (this.onTokensRefreshed) {
+      await this.onTokensRefreshed({ accessToken: this.accessToken, refreshToken: this.refreshToken });
+    }
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
