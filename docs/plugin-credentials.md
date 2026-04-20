@@ -441,3 +441,27 @@ PC_PASSWORD=<pw> \
   ACCESSTOKENREF=<asana-personal-access-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-asana
 ```
+
+---
+
+## Salesforce (CRM)
+
+**Env vars:** `ACCESSTOKENREF`, `REFRESHTOKENREF`, `CLIENTIDREF`, `CLIENTSECRETREF`, `PLUGIN_CONFIG_instanceUrl`
+
+**Where to find them:**
+1. Log in to Salesforce → go to **Setup → Apps → App Manager → New Connected App**
+2. Enable OAuth settings, add callback URL (e.g. `https://login.salesforce.com/services/oauth2/callback`)
+3. Add scopes: `Full access (full)` or `api`, `refresh_token`, `offline_access`
+4. After saving, note the **Consumer Key** (Client ID) and **Consumer Secret** (Client Secret)
+5. Authorize the app using OAuth2 Authorization Code flow to obtain an **Access Token** and **Refresh Token**
+6. Your **Instance URL** is shown in the URL when logged in: e.g. `https://yourorg.my.salesforce.com`
+
+```bash
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<salesforce-access-token> \
+  REFRESHTOKENREF=<salesforce-refresh-token> \
+  CLIENTIDREF=<salesforce-consumer-key> \
+  CLIENTSECRETREF=<salesforce-consumer-secret> \
+  PLUGIN_CONFIG_instanceUrl=https://yourorg.my.salesforce.com \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-salesforce
+```

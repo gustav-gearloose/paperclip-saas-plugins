@@ -97,7 +97,8 @@ plugin_dir() {
     20) echo "packages/plugin-shopify" ;;
     21) echo "packages/plugin-monday" ;;
     22) echo "packages/plugin-asana" ;;
-    23) echo "__custom__" ;;
+    23) echo "packages/plugin-salesforce" ;;
+    24) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -126,7 +127,8 @@ plugin_env_vars() {
     20) printf 'ACCESSTOKENREF\nPLUGIN_CONFIG_shopDomain' ;;
     21) printf 'APITOKENREF' ;;
     22) printf 'ACCESSTOKENREF' ;;
-    23) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    23) printf 'ACCESSTOKENREF\nREFRESHTOKENREF\nCLIENTIDREF\nCLIENTSECRETREF\nPLUGIN_CONFIG_instanceUrl' ;;
+    24) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -158,14 +160,15 @@ echo "   19) WooCommerce (e-commerce orders, products, customers)"
 echo "   20) Shopify (e-commerce orders, products, customers)"
 echo "   21) monday.com (boards, items, updates, users)"
 echo "   22) Asana (projects, tasks, teams)"
-echo "   23) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   23) Salesforce (contacts, accounts, opportunities, leads)"
+echo "   24) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to add? (comma-separated numbers, e.g. 1,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22)  # 23 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23)  # 24 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi

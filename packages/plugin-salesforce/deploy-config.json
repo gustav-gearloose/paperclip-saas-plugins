@@ -1,0 +1,11 @@
+{
+  "configJson": {
+    "instanceUrl": "REPLACE_WITH_INSTANCE_URL"
+  },
+  "secretRefs": {
+    "accessTokenRef": { "uuid": "REPLACE_WITH_SECRET_UUID" },
+    "refreshTokenRef": { "uuid": "REPLACE_WITH_SECRET_UUID" },
+    "clientIdRef": { "uuid": "REPLACE_WITH_SECRET_UUID" },
+    "clientSecretRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}
