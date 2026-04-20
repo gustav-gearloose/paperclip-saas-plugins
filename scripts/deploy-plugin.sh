@@ -39,13 +39,15 @@ require_env() {
   for v in PC_HOST PC_EMAIL PC_PASSWORD PC_COMPANY_ID SSH_HOST; do
     [[ -n "${!v:-}" ]] || die "Missing required env var: $v"
   done
+  # PC_ORIGIN defaults to PC_HOST; override for VPS+Caddy where CSRF validates against public HTTPS URL
+  PC_ORIGIN="${PC_ORIGIN:-$PC_HOST}"
 }
 
 # Run curl on the remote host, always with the session cookie
 pc_curl() {
   ssh "$SSH_HOST" "curl -s -b /tmp/pc_deploy_cookies.txt \
-    -H 'Origin: $PC_HOST' \
-    -H 'Referer: $PC_HOST/' \
+    -H 'Origin: $PC_ORIGIN' \
+    -H 'Referer: $PC_ORIGIN/' \
     $*"
 }
 
@@ -54,8 +56,8 @@ pc_curl_post() {
   ssh "$SSH_HOST" "curl -s -b /tmp/pc_deploy_cookies.txt \
     -X POST '$PC_HOST$url' \
     -H 'Content-Type: application/json' \
-    -H 'Origin: $PC_HOST' \
-    -H 'Referer: $PC_HOST/' \
+    -H 'Origin: $PC_ORIGIN' \
+    -H 'Referer: $PC_ORIGIN/' \
     $*"
 }
 
@@ -144,7 +146,7 @@ info "Authenticating with Paperclip at $PC_HOST..."
 _AUTH_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'email':sys.argv[1],'password':sys.argv[2]}).encode()).decode())" "$PC_EMAIL" "$PC_PASSWORD")
 ssh "$SSH_HOST" "echo $_AUTH_B64 | base64 -d | curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
   -H 'Content-Type: application/json' \
-  -H 'Origin: $PC_HOST' \
+  -H 'Origin: $PC_ORIGIN' \
   -c /tmp/pc_deploy_cookies.txt \
   --data-binary @- > /dev/null"
 
@@ -186,7 +188,7 @@ for key, s in refs.items():
       info "Creating secret '$name'..."
       PAYLOAD_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'name':sys.argv[1],'value':sys.argv[2]}).encode()).decode())" "$name" "$value")
       UUID=$(ssh "$SSH_HOST" "echo $PAYLOAD_B64 | base64 -d | curl -s -X POST '$PC_HOST/api/companies/$PC_COMPANY_ID/secrets' \
-        -H 'Content-Type: application/json' -H 'Origin: $PC_HOST' \
+        -H 'Content-Type: application/json' -H 'Origin: $PC_ORIGIN' \
         -b /tmp/pc_deploy_cookies.txt --data-binary @-" \
         | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
       echo "$key=$UUID" >> "$SECRET_UUIDS_FILE"

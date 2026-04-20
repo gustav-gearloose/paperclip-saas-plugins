@@ -57,6 +57,7 @@ set +a
 [[ -n "${PC_PASSWORD:-}" ]] || { echo "❌ PC_PASSWORD not set" >&2; exit 1; }
 
 PC_HOST="${PC_HOST:?PC_HOST not set}"
+PC_ORIGIN="${PC_ORIGIN:-$PC_HOST}"
 PC_EMAIL="${PC_EMAIL:?PC_EMAIL not set}"
 PC_COMPANY_ID="${PC_COMPANY_ID:?PC_COMPANY_ID not set}"
 SSH_HOST="${SSH_HOST:?SSH_HOST not set}"
@@ -72,7 +73,7 @@ info "Authenticating with Paperclip at $PC_HOST..."
 _AUTH_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'email':sys.argv[1],'password':sys.argv[2]}).encode()).decode())" "$PC_EMAIL" "$PC_PASSWORD")
 ssh "$SSH_HOST" "echo $_AUTH_B64 | base64 -d | curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
   -H 'Content-Type: application/json' \
-  -H 'Origin: $PC_HOST' \
+  -H 'Origin: $PC_ORIGIN' \
   -c /tmp/pc_provision_cookies.txt \
   --data-binary @- > /dev/null"
 
@@ -83,10 +84,10 @@ info "Resolving secrets for $PLUGIN_SLUG..."
 # Collect all env vars as JSON for Python to read
 ENV_JSON=$(python3 -c "import os,json; print(json.dumps(dict(os.environ)))")
 
-RESOLVED_CONFIG=$(python3 - "$DEPLOY_CONFIG" "$CUSTOMER_CONFIG" "$SSH_HOST" "$PC_HOST" "$PC_COMPANY_ID" "$ENV_JSON" <<'PYEOF'
+RESOLVED_CONFIG=$(python3 - "$DEPLOY_CONFIG" "$CUSTOMER_CONFIG" "$SSH_HOST" "$PC_HOST" "$PC_COMPANY_ID" "$ENV_JSON" "$PC_ORIGIN" <<'PYEOF'
 import json, sys, subprocess, os, base64
 
-deploy_path, cust_path, ssh_host, pc_host, company_id, env_json = sys.argv[1:]
+deploy_path, cust_path, ssh_host, pc_host, company_id, env_json, pc_origin = sys.argv[1:]
 env = json.loads(env_json)
 
 deploy = json.load(open(deploy_path))
@@ -128,7 +129,7 @@ for key, spec in deploy.get('secretRefs', {}).items():
         f"echo {payload_b64} | base64 -d | "
         f"curl -s -X POST '{pc_host}/api/companies/{company_id}/secrets' "
         f"-H 'Content-Type: application/json' "
-        f"-H 'Origin: {pc_host}' "
+        f"-H 'Origin: {pc_origin}' "
         f"-b /tmp/pc_provision_cookies.txt "
         f"--data-binary @-"
     )

@@ -29,6 +29,7 @@ source "$ENV_FILE"
 set +a
 
 PC_HOST="${PC_HOST:?PC_HOST not set in $ENV_FILE}"
+PC_ORIGIN="${PC_ORIGIN:-$PC_HOST}"
 PC_EMAIL="${PC_EMAIL:?PC_EMAIL not set}"
 PC_PASSWORD="${PC_PASSWORD:?PC_PASSWORD not set}"
 PC_COMPANY_ID="${PC_COMPANY_ID:?PC_COMPANY_ID not set}"
@@ -45,7 +46,7 @@ fail()  { echo "  ❌ $*"; FAIL=$((FAIL+1)); ERRORS+=("$*"); }
 # Run curl on remote host with session cookie
 pc() {
   ssh "$SSH_HOST" "curl -s -b /tmp/pc_smoke_cookies.txt \
-    -H 'Origin: $PC_HOST' $*"
+    -H 'Origin: $PC_ORIGIN' $*"
 }
 
 pc_post() {
@@ -53,7 +54,7 @@ pc_post() {
   ssh "$SSH_HOST" "curl -s -b /tmp/pc_smoke_cookies.txt \
     -X POST '$PC_HOST$url' \
     -H 'Content-Type: application/json' \
-    -H 'Origin: $PC_HOST' $*"
+    -H 'Origin: $PC_ORIGIN' $*"
 }
 
 echo "Smoke-testing Paperclip plugins for customer: $CUSTOMER"
@@ -66,7 +67,7 @@ echo "Authenticating..."
 AUTH_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'email':sys.argv[1],'password':sys.argv[2]}).encode()).decode())" "$PC_EMAIL" "$PC_PASSWORD")
 ssh "$SSH_HOST" "echo $AUTH_B64 | base64 -d | curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
   -H 'Content-Type: application/json' \
-  -H 'Origin: $PC_HOST' \
+  -H 'Origin: $PC_ORIGIN' \
   -c /tmp/pc_smoke_cookies.txt \
   --data-binary @- > /dev/null"
 echo ""

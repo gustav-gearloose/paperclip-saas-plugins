@@ -83,7 +83,7 @@ info "Authenticating with Paperclip at $PC_HOST..."
 _AUTH_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'email':sys.argv[1],'password':sys.argv[2]}).encode()).decode())" "$PC_EMAIL" "$PC_PASSWORD")
 ssh "$SSH_HOST" "echo $_AUTH_B64 | base64 -d | curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
   -H 'Content-Type: application/json' \
-  -H 'Origin: $PC_HOST' \
+  -H 'Origin: $PC_ORIGIN' \
   -c /tmp/pc_wire_cookies.txt \
   --data-binary @- > /dev/null"
 
@@ -91,7 +91,7 @@ if [[ -z "$AGENT_ID" ]]; then
   info "No agent-id given — looking up agents..."
   AGENT_ID=$(ssh "$SSH_HOST" "curl -s '$PC_HOST/api/agents' \
     -b /tmp/pc_wire_cookies.txt \
-    -H 'Origin: $PC_HOST'" \
+    -H 'Origin: $PC_ORIGIN'" \
     | python3 -c "
 import sys, json
 agents = json.load(sys.stdin)
@@ -181,7 +181,7 @@ info "Patching agent $AGENT_ID with extraArgs..."
 PATCH_RESULT=$(ssh "$SSH_HOST" "curl -s -X PATCH '$PC_HOST/api/agents/$AGENT_ID' \
   -b /tmp/pc_wire_cookies.txt \
   -H 'Content-Type: application/json' \
-  -H 'Origin: $PC_HOST' \
+  -H 'Origin: $PC_ORIGIN' \
   -d '{\"adapterConfig\":{\"extraArgs\":[\"--settings\",\"$MCP_CONFIG_PATH\"]}}'")
 
 echo "$PATCH_RESULT" | python3 -c "

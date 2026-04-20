@@ -115,7 +115,7 @@ section "Validating Paperclip authentication"
 _AUTH_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'email':sys.argv[1],'password':sys.argv[2]}).encode()).decode())" "$PC_EMAIL" "$PC_PASSWORD")
 AUTH_RESULT=$(ssh "$SSH_HOST" "echo $_AUTH_B64 | base64 -d | curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
   -H 'Content-Type: application/json' \
-  -H 'Origin: $PC_HOST' \
+  -H 'Origin: $PC_ORIGIN' \
   -c /tmp/pc_onboard_cookies_$CUSTOMER.txt \
   --data-binary @-" 2>/dev/null || echo '{"error":"curl failed"}')
 
@@ -134,7 +134,7 @@ if [[ -z "$PC_COMPANY_ID" ]]; then
   info "Auto-detecting company ID from Paperclip API..."
   DETECTED=$(ssh "$SSH_HOST" "curl -s '$PC_HOST/api/companies' \
     -b /tmp/pc_onboard_cookies_$CUSTOMER.txt \
-    -H 'Origin: $PC_HOST'" 2>/dev/null \
+    -H 'Origin: $PC_ORIGIN'" 2>/dev/null \
     | python3 -c "
 import sys, json
 try:
@@ -162,7 +162,7 @@ except Exception:
 else
   COMPANY_CHECK=$(ssh "$SSH_HOST" "curl -s '$PC_HOST/api/companies/$PC_COMPANY_ID' \
     -b /tmp/pc_onboard_cookies_$CUSTOMER.txt \
-    -H 'Origin: $PC_HOST'" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('name','?'))" 2>/dev/null || echo "")
+    -H 'Origin: $PC_ORIGIN'" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('name','?'))" 2>/dev/null || echo "")
 
   if [[ -n "$COMPANY_CHECK" && "$COMPANY_CHECK" != "?" ]]; then
     ok "Company found: $COMPANY_CHECK"
