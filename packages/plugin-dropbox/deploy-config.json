@@ -1,0 +1,9 @@
+{
+  "configJson": {},
+  "secretRefs": {
+    "accessTokenRef": {
+      "name": "dropbox-access-token",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    }
+  }
+}

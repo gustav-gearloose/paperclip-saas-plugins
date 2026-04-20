@@ -811,3 +811,23 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_domain=<mycompany> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-confluence
 ```
+
+---
+
+## Dropbox (file storage)
+
+**Env vars:** `ACCESSTOKENREF`
+
+**Where to find them:**
+1. Go to [dropbox.com/developers/apps](https://www.dropbox.com/developers/apps) → Create app → Scoped access → Full Dropbox
+2. Under **Permissions**, enable: `files.content.read`, `files.content.write`, `files.metadata.read`, `files.metadata.write`, `sharing.read`, `sharing.write`
+3. Under **Settings** → OAuth 2 → Generated access token → click **Generate** (long-lived token)
+4. Store the token as a Paperclip secret → copy its UUID as `ACCESSTOKENREF`
+
+> For production use, consider using the OAuth2 refresh-token flow instead of a generated token.
+
+```bash
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-dropbox
+```
