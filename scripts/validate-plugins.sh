@@ -127,6 +127,35 @@ for PLUGIN_DIR in "${PLUGIN_DIRS[@]}"; do
     info "Skipping tool name parity (dist not built — run npm run build first)"
   fi
 
+  # Tool parameter description check (catches missing descriptions that hurt agent reasoning)
+  if [[ -f "$PLUGIN_DIR/dist/manifest.js" ]]; then
+    missing_descs=$(node -e "
+const m = require('$PLUGIN_DIR/dist/manifest.js');
+const manifest = m.default || m;
+const missing = [];
+manifest.tools.forEach(t => {
+  const check = (props, prefix) => {
+    if (!props) return;
+    Object.entries(props).forEach(([k, v]) => {
+      if (!v.description) missing.push(t.name + ' > ' + prefix + k);
+      if (v.items && v.items.properties) check(v.items.properties, prefix + k + '[].');
+      if (v.properties) check(v.properties, prefix + k + '.');
+    });
+  };
+  if (t.parametersSchema && t.parametersSchema.properties) check(t.parametersSchema.properties, '');
+});
+if (missing.length) console.log(missing.join(', '));
+" 2>/dev/null || true)
+    if [[ -n "$missing_descs" ]]; then
+      fail "Tool parameters missing descriptions (agents can't reason about them): $missing_descs"
+    else
+      ok "All tool parameters have descriptions"
+      PASS=$((PASS+1))
+    fi
+  else
+    info "Skipping parameter description check (dist not built)"
+  fi
+
   # Worker must call runWorker at the end
   if grep -q 'runWorker(plugin' "$WORKER_SRC"; then
     ok "runWorker() present"

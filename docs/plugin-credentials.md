@@ -181,7 +181,7 @@ PC_PASSWORD=<pw> \
 
 ## Email (IMAP/SMTP)
 
-**Env vars:** `EMAILPASSWORDREF`, `PLUGIN_CONFIG_emailUser`, `PLUGIN_CONFIG_imapHost`, `PLUGIN_CONFIG_imapPort`, `PLUGIN_CONFIG_smtpHost`, `PLUGIN_CONFIG_smtpPort`
+**Env vars:** `EMAILPASSWORDREF`, `PLUGIN_CONFIG_emailUser`, `PLUGIN_CONFIG_imapHost`, `PLUGIN_CONFIG_imapPort`, `PLUGIN_CONFIG_smtpHost`, `PLUGIN_CONFIG_smtpPort`, `PLUGIN_CONFIG_displayName`
 
 **Common providers:**
 
@@ -201,5 +201,6 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_imapPort=993 \
   PLUGIN_CONFIG_smtpHost=smtp.gmail.com \
   PLUGIN_CONFIG_smtpPort=465 \
+  PLUGIN_CONFIG_displayName="Company Agent" \
   ./scripts/provision-plugin.sh <slug> packages/plugin-email
 ```
