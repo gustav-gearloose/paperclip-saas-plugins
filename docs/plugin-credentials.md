@@ -671,3 +671,53 @@ PC_PASSWORD=<pw> \
   APIKEYREF=<klaviyo-private-api-key> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-klaviyo
 ```
+
+## Zoho CRM (CRM records, deals, contacts)
+
+**Env vars:** `ACCESSTOKENREF`, `PLUGIN_CONFIG_domain`
+
+**Where to find them:**
+1. Log in to the [Zoho Developer Console](https://api-console.zoho.com/)
+2. Create an OAuth 2.0 client (Server-based application) and generate an **access token** for the `ZohoCRM.modules.ALL` scope
+3. Store the access token as a Paperclip secret
+4. Choose your regional domain: `zohoapis.com` (US), `zohoapis.eu` (EU), `zohoapis.in` (IN), `zohoapis.com.cn` (CN)
+
+```bash
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<zoho-access-token-secret-uuid> \
+  PLUGIN_CONFIG_domain=zohoapis.com \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-zoho-crm
+```
+
+## Mailgun (transactional email)
+
+**Env vars:** `APIKEYREF`, `PLUGIN_CONFIG_domain`, `PLUGIN_CONFIG_region`
+
+**Where to find them:**
+1. Log in to Mailgun → Account → **API Keys**
+2. Copy your **Private API key** and store it as a Paperclip secret
+3. Note your sending domain (e.g. `mg.example.com`) from Sending → Domains
+4. Choose region: `us` (api.mailgun.net) or `eu` (api.eu.mailgun.net)
+
+```bash
+PC_PASSWORD=<pw> \
+  APIKEYREF=<mailgun-private-api-key> \
+  PLUGIN_CONFIG_domain=mg.example.com \
+  PLUGIN_CONFIG_region=us \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-mailgun
+```
+
+## Postmark (transactional email)
+
+**Env vars:** `SERVERTOKENREF`
+
+**Where to find them:**
+1. Log in to Postmark → select your **Server** → API Tokens tab
+2. Copy the **Server API token**
+3. Store it as a Paperclip secret
+
+```bash
+PC_PASSWORD=<pw> \
+  SERVERTOKENREF=<postmark-server-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-postmark
+```
