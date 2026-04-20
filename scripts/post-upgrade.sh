@@ -4,11 +4,12 @@
 # Run this whenever Paperclip is upgraded (new Docker image pulled and container recreated).
 # It will:
 #   1. Apply compiled JS patches (plugin-tool-dispatcher + plugin-loader fixes)
-#   2. Restart the container to pick up the patches
-#   3. Wait for Paperclip to be healthy
-#   4. Redeploy all plugins that have a customer config in customers/<slug>/
-#   5. Rewire the MCP proxy (re-runs npm install inside container after image rebuild)
-#   6. Run smoke tests to confirm tools are callable
+#   2. Apply agent-tool-auth patch (assertBoard → assertBoardOrAgent on tool endpoints)
+#   3. Restart the container to pick up the patches
+#   4. Wait for Paperclip to be healthy
+#   5. Redeploy all plugins that have a customer config in customers/<slug>/
+#   6. Rewire the MCP proxy (re-runs npm install inside container after image rebuild)
+#   7. Run smoke tests to confirm tools are callable
 #
 # Usage:
 #   ./scripts/post-upgrade.sh <customer-slug>

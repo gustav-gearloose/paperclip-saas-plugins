@@ -45,7 +45,7 @@ fail()  { echo "  ❌ $*"; FAIL=$((FAIL+1)); ERRORS+=("$*"); }
 
 # Run curl on remote host with session cookie
 pc() {
-  ssh "$SSH_HOST" "curl -s -b /tmp/pc_smoke_cookies.txt \
+  ssh -n "$SSH_HOST" "curl -s -b /tmp/pc_smoke_cookies.txt \
     -H 'Origin: $PC_ORIGIN' $*"
 }
 
@@ -54,7 +54,7 @@ pc_post_json() {
   local body="$2"
   local b64
   b64=$(printf '%s' "$body" | base64)
-  ssh "$SSH_HOST" "echo $b64 | base64 -d | curl -s -b /tmp/pc_smoke_cookies.txt \
+  ssh -n "$SSH_HOST" "echo $b64 | base64 -d | curl -s -b /tmp/pc_smoke_cookies.txt \
     -X POST '$PC_HOST$url' \
     -H 'Content-Type: application/json' \
     -H 'Origin: $PC_ORIGIN' \
@@ -78,18 +78,37 @@ echo ""
 
 # ── get agent ID (for tool execute context) ───────────────────────────────────
 
-AGENT_ID=$(pc "'$PC_HOST/api/agents'" \
+AGENT_ID=$(pc "'$PC_HOST/api/companies/$PC_COMPANY_ID/agents'" \
   | python3 -c "
 import sys, json
 agents = json.load(sys.stdin)
-# pick cfo or first agent
+if not isinstance(agents, list): sys.exit(0)
 for a in agents:
     if a.get('name','').lower() in ('cfo','assistant','agent'):
         print(a['id']); sys.exit(0)
 if agents: print(agents[0]['id'])
 " 2>/dev/null || true)
 
-RUN_CONTEXT="{\"agentId\":\"${AGENT_ID:-}\",\"runId\":\"smoke-test\",\"companyId\":\"$PC_COMPANY_ID\"}"
+PROJECT_ID=$(pc "'$PC_HOST/api/companies/$PC_COMPANY_ID/projects'" \
+  | python3 -c "
+import sys, json
+try:
+    projects = json.load(sys.stdin)
+    if isinstance(projects, list) and projects: print(projects[0]['id'])
+except: pass
+" 2>/dev/null || true)
+
+RUN_CONTEXT="{\"agentId\":\"${AGENT_ID:-}\",\"runId\":\"smoke-test\",\"companyId\":\"$PC_COMPANY_ID\",\"projectId\":\"${PROJECT_ID:-}\"}"
+
+# ── get available tool names (only custom plugins expose tools here) ───────────
+
+AVAILABLE_TOOLS=$(pc "'$PC_HOST/api/plugins/tools'" | python3 -c "
+import sys, json
+try:
+    tools = json.load(sys.stdin)
+    for t in tools: print(t.get('name',''))
+except: pass
+" 2>/dev/null || true)
 
 # ── get installed plugins ─────────────────────────────────────────────────────
 
@@ -109,7 +128,7 @@ fi
 
 # Map: plugin key substring → lightweight tool name + minimal params
 SMOKE_TOOLS=(
-  "dinero|dinero_list_contacts|{}"
+  "dinero|dinero_get_balance|{}"
   "billy|billy_list_contacts|{}"
   "economic|economic_list_accounts|{}"
   "zendesk|zendesk_list_tickets|{\"page_size\":1}"
@@ -179,7 +198,12 @@ while IFS=$'\t' read -r plugin_id display_name status plugin_key; do
     continue
   fi
 
-  # 2. Tool smoke test — find matching tool
+  # 2. Tool smoke test — find a tool for this plugin from available tools list or SMOKE_TOOLS map
+  TOOL_NAME=""
+  TOOL_PARAMS="{}"
+
+  # Pick a tool from SMOKE_TOOLS map if it exists in AVAILABLE_TOOLS, else first available.
+  # Only custom plugins expose tools via /api/plugins/tools — built-ins (Slack etc.) do not.
   TOOL_NAME=""
   TOOL_PARAMS="{}"
   for entry in "${SMOKE_TOOLS[@]}"; do
@@ -188,15 +212,21 @@ while IFS=$'\t' read -r plugin_id display_name status plugin_key; do
     tname="${rest%%|*}"
     tparams="${rest#*|}"
     if echo "$plugin_key" | grep -qi "$pattern"; then
-      # Execute API: "pluginKey:toolName" e.g. "gearloose.dinero:dinero_list_contacts"
-      TOOL_NAME="${plugin_key}:${tname}"
-      TOOL_PARAMS="$tparams"
-      break
+      preferred="${plugin_key}:${tname}"
+      if echo "$AVAILABLE_TOOLS" | grep -q "^${preferred}$"; then
+        TOOL_NAME="$preferred"
+        TOOL_PARAMS="$tparams"
+        break
+      fi
     fi
   done
+  # Fallback: use first available tool for this plugin (with no params)
+  if [[ -z "$TOOL_NAME" ]]; then
+    TOOL_NAME=$(echo "$AVAILABLE_TOOLS" | grep "^${plugin_key}:" | head -1 || true)
+  fi
 
   if [[ -z "$TOOL_NAME" ]]; then
-    info "No smoke tool configured for plugin key: $plugin_key (skipping tool test)"
+    info "No custom tools exposed for plugin key: $plugin_key (skipping tool test)"
   else
     EXEC_BODY="{\"tool\":\"$TOOL_NAME\",\"parameters\":$TOOL_PARAMS,\"runContext\":$RUN_CONTEXT}"
     exec_result=$(pc_post_json "/api/plugins/tools/execute" "$EXEC_BODY" \
