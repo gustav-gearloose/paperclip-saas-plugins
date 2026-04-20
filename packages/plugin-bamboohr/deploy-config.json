@@ -1,0 +1,11 @@
+{
+  "configJson": {
+    "domain": ""
+  },
+  "secretRefs": {
+    "apiKeyRef": {
+      "name": "bamboohr-api-key",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    }
+  }
+}

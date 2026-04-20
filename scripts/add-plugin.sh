@@ -120,7 +120,8 @@ plugin_dir() {
     43) echo "packages/plugin-confluence" ;;
     44) echo "packages/plugin-dropbox" ;;
     45) echo "packages/plugin-freshsales" ;;
-    46) echo "__custom__" ;;
+    46) echo "packages/plugin-bamboohr" ;;
+    47) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -172,7 +173,8 @@ plugin_env_vars() {
     43) printf 'APITOKENREF\nPLUGIN_CONFIG_email\nPLUGIN_CONFIG_domain' ;;
     44) printf 'ACCESSTOKENREF' ;;
     45) printf 'APIKEYREF\nPLUGIN_CONFIG_domain' ;;
-    46) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    46) printf 'APIKEYREF\nPLUGIN_CONFIG_domain' ;;
+    47) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -227,14 +229,15 @@ echo "   42) Google Drive (files, folders, upload, share via service account)"
 echo "   43) Confluence (pages, spaces, comments — same Atlassian API token as Jira)"
 echo "   44) Dropbox (list, read, upload, move, copy, share files via access token)"
 echo "   45) Freshsales (CRM — contacts, accounts, deals, notes, tasks, search)"
-echo "   46) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   46) BambooHR (HR — employee directory, time off, org chart, custom reports)"
+echo "   47) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to add? (comma-separated numbers, e.g. 1,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45)  # 46 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46)  # 47 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi
@@ -256,7 +259,7 @@ for num in "${SELECTED_NUMS[@]}"; do
   [[ -z "$dir" ]] && { warn "Unknown plugin number: $num (skipping)"; continue; }
 
   # ── custom plugin scaffold sub-flow ────────────────────────────────────────
-  if [[ "$dir" == "__custom__" ]]; then
+  if [[ "$dir" == "__custom__" ]]; then  # slot 47
     echo ""
     echo -e "  ${CYAN}Custom plugin scaffold${NC}"
     ask "  Plugin name (short, e.g. 'freshdesk' or 'fortnox'):"

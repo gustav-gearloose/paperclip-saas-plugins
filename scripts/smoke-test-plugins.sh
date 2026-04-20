@@ -153,6 +153,7 @@ SMOKE_TOOLS=(
   "confluence|confluence_list_spaces|{}"
   "dropbox|dropbox_list_folder|{}"
   "freshsales|freshsales_list_contacts|{}"
+  "bamboohr|bamboohr_get_directory|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

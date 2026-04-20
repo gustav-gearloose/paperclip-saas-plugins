@@ -852,3 +852,25 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_domain=<mycompany> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-freshsales
 ```
+
+---
+
+## BambooHR
+
+**Env vars:** `APIKEYREF`, `PLUGIN_CONFIG_domain`
+
+**Where to find them:**
+1. Log in to BambooHR as an admin
+2. Click your name (top-right) → **API Keys**
+3. Click **Add New Key**, name it (e.g. `Paperclip AI`), copy the key
+4. Store the API key as a Paperclip secret → copy its UUID as `APIKEYREF`
+5. **domain**: your BambooHR subdomain (e.g. `mycompany` from `mycompany.bamboohr.com`)
+
+> Uses HTTP Basic auth — `apiKey:x` Base64 encoded. No OAuth2 required.
+
+```bash
+PC_PASSWORD=<pw> \
+  APIKEYREF=<secret-uuid> \
+  PLUGIN_CONFIG_domain=<mycompany> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-bamboohr
+```
