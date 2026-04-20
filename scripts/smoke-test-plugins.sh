@@ -179,6 +179,7 @@ SMOKE_TOOLS=(
   "google-calendar|calendar_list_calendars|{}"
   "xero|xero_list_accounts|{}"
   "visma|visma_list_fiscal_years|{}"
+  "quickbooks|quickbooks_list_accounts|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

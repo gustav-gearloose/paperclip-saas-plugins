@@ -1008,3 +1008,30 @@ CLIENTIDREF=<secret-uuid> \
   REFRESHTOKENREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-visma
 ```
+
+---
+
+## 53. QuickBooks Online
+
+**Where to get credentials:**
+1. Go to [developer.intuit.com](https://developer.intuit.com/) → Create an app → QuickBooks Online and Payments
+2. Copy the **Client ID** and **Client Secret** from your app's Keys & OAuth section
+3. Complete the OAuth2 authorization code flow (scopes: `com.intuit.quickbooks.accounting offline_access`) to get a **refresh token** and **realm ID** (company ID from the OAuth callback URL parameter `realmId`)
+4. Store Client ID, Client Secret, and Refresh Token as separate Paperclip secrets
+5. Note: Refresh tokens rotate on each use (valid ~100 days, renewed automatically by the plugin)
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `CLIENTIDREF` | UUID of the Paperclip secret holding the QuickBooks OAuth2 client ID |
+| `CLIENTSECRETREF` | UUID of the Paperclip secret holding the QuickBooks OAuth2 client secret |
+| `REFRESHTOKENREF` | UUID of the Paperclip secret holding the QuickBooks OAuth2 refresh token |
+| `PLUGIN_CONFIG_realmId` | QuickBooks company/realm ID (from OAuth callback `realmId` parameter) |
+
+```bash
+CLIENTIDREF=<secret-uuid> \
+  CLIENTSECRETREF=<secret-uuid> \
+  REFRESHTOKENREF=<secret-uuid> \
+  PLUGIN_CONFIG_realmId=<realm-id> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-quickbooks
+```
