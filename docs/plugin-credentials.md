@@ -874,3 +874,26 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_domain=<mycompany> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-bamboohr
 ```
+
+---
+
+## Personio
+
+**Env vars:** `CLIENTIDREF`, `CLIENTSECRETREF`
+
+**Where to find them:**
+1. Log in to Personio as an admin
+2. Go to **Settings → Integrations → API credentials**
+3. Click **Generate new credentials** — name it `Paperclip AI`
+4. Enable the employee attributes the agent should be able to read (e.g. first name, last name, email, department, position)
+5. Copy the **Client ID** → store as a Paperclip secret → UUID as `CLIENTIDREF`
+6. Copy the **Client Secret** → store as a Paperclip secret → UUID as `CLIENTSECRETREF`
+
+> The plugin fetches a short-lived bearer token on startup using client_id + client_secret (POST /auth). No OAuth2 redirect flow required.
+
+```bash
+PC_PASSWORD=<pw> \
+  CLIENTIDREF=<secret-uuid> \
+  CLIENTSECRETREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-personio
+```

@@ -1,0 +1,13 @@
+{
+  "configJson": {},
+  "secretRefs": {
+    "clientIdRef": {
+      "name": "personio-client-id",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    },
+    "clientSecretRef": {
+      "name": "personio-client-secret",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    }
+  }
+}

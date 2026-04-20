@@ -154,6 +154,7 @@ SMOKE_TOOLS=(
   "dropbox|dropbox_list_folder|{}"
   "freshsales|freshsales_list_contacts|{}"
   "bamboohr|bamboohr_get_directory|{}"
+  "personio|personio_list_employees|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

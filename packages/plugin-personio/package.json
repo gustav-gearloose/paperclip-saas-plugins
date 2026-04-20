@@ -1,0 +1,20 @@
+{
+  "name": "@gearloose/paperclip-plugin-personio",
+  "version": "0.1.0",
+  "description": "Personio HR integration for Paperclip AI — employees, absences, attendance, and departments",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "paperclipPlugin": {
+    "manifest": "./dist/manifest.js",
+    "worker": "./dist/worker.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "@paperclipai/plugin-sdk": "^2026.416.0"
+  }
+}
