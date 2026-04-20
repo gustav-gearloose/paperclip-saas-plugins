@@ -1224,3 +1224,20 @@ APITOKENREF=<secret-uuid> \
   PLUGIN_CONFIG_companyId=<your-company-id> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-recruitee
 ```
+
+## 63. Teamtailor
+
+**Where to get credentials:**
+1. Log in to Teamtailor → Settings → Integrations → API keys
+2. Click **Generate new API key** → choose **Admin** type for full access
+3. Copy the key immediately (shown only once)
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `APIKEYREF` | UUID of the Paperclip secret holding the Teamtailor API key |
+
+```bash
+APIKEYREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-teamtailor
+```
