@@ -137,7 +137,7 @@ cfg = {
 }
 print(json.dumps(cfg, indent=2))
 " "$PROXY_PATH" "$PC_HOST_INTERNAL" "$PC_EMAIL" "$PC_PASSWORD" "$PC_COMPANY_ID" "$AGENT_ID" "$PC_ORIGIN")
-echo "$MCP_JSON" | ssh "$SSH_HOST" "$DOCKER exec -i $CONTAINER tee $MCP_CONFIG_PATH" > /dev/null
+printf '%s' "$MCP_JSON" | ssh "$SSH_HOST" "$DOCKER exec -i $CONTAINER tee $MCP_CONFIG_PATH" > /dev/null
 info "Written: $MCP_CONFIG_PATH"
 
 # ── step 5: verify proxy starts ───────────────────────────────────────────────
@@ -178,11 +178,12 @@ fi
 # ── step 6: patch agent ────────────────────────────────────────────────────────
 
 info "Patching agent $AGENT_ID with extraArgs..."
-PATCH_RESULT=$(ssh "$SSH_HOST" "curl -s -X PATCH '$PC_HOST/api/agents/$AGENT_ID' \
+_PATCH_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'adapterConfig':{'extraArgs':['--settings',sys.argv[1]]}}).encode()).decode())" "$MCP_CONFIG_PATH")
+PATCH_RESULT=$(ssh "$SSH_HOST" "echo $_PATCH_B64 | base64 -d | curl -s -X PATCH '$PC_HOST/api/agents/$AGENT_ID' \
   -b /tmp/pc_wire_cookies.txt \
   -H 'Content-Type: application/json' \
   -H 'Origin: $PC_ORIGIN' \
-  -d '{\"adapterConfig\":{\"extraArgs\":[\"--settings\",\"$MCP_CONFIG_PATH\"]}}'")
+  --data-binary @-")
 
 echo "$PATCH_RESULT" | python3 -c "
 import sys, json
