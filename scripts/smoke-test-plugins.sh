@@ -152,6 +152,7 @@ SMOKE_TOOLS=(
   "google-drive|drive_list_files|{}"
   "confluence|confluence_list_spaces|{}"
   "dropbox|dropbox_list_folder|{}"
+  "freshsales|freshsales_list_contacts|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

@@ -831,3 +831,24 @@ PC_PASSWORD=<pw> \
   ACCESSTOKENREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-dropbox
 ```
+
+---
+
+## Freshsales (Freshworks CRM)
+
+**Env vars:** `APIKEYREF`, `PLUGIN_CONFIG_domain`
+
+**Where to find them:**
+1. Log in to your Freshsales account
+2. Click your profile icon → **Profile Settings** → **API Settings**
+3. Copy the **API Key** → store as a Paperclip secret → copy its UUID as `APIKEYREF`
+4. **domain**: your Freshworks subdomain (e.g. `mycompany` from `mycompany.myfreshworks.com`)
+
+> Uses simple API key auth — no OAuth2 required.
+
+```bash
+PC_PASSWORD=<pw> \
+  APIKEYREF=<secret-uuid> \
+  PLUGIN_CONFIG_domain=<mycompany> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-freshsales
+```
