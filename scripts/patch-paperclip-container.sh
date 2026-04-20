@@ -66,15 +66,36 @@ if [[ -z "$LOADER_LINE" ]]; then
 fi
 echo "  Found: $LOADER_LINE"
 
-# ── check if patch already applied ──────────────────────────────────────────
+# ── check if patch already applied or upstream fix present ───────────────────
 
 DISPATCHER_ALREADY=$(ssh "$SSH_HOST" "$DOCKER exec $CONTAINER grep -c 'pluginDbId' \
   /app/server/dist/services/plugin-tool-dispatcher.js 2>/dev/null || echo 0")
-LOADER_ALREADY=$(ssh "$SSH_HOST" "$DOCKER exec $CONTAINER grep -c 'pluginId.*pluginKey\|pluginKey.*pluginId\|registerPluginTools.*pluginId' \
+LOADER_ALREADY=$(ssh "$SSH_HOST" "$DOCKER exec $CONTAINER grep -c 'registerPluginTools.*pluginId' \
   /app/server/dist/services/plugin-loader.js 2>/dev/null || echo 0")
 
 if [[ "$DISPATCHER_ALREADY" -gt 0 ]] && [[ "$LOADER_ALREADY" -gt 0 ]]; then
   ok "Patches already applied — nothing to do"
+  exit 0
+fi
+
+# Check if the unfixed 2-arg call signature is even present in the loader.
+# If it's absent, a Paperclip upgrade may have fixed the bug upstream — we
+# should NOT blindly patch because the target lines won't match.
+LOADER_UNFIXED=$(ssh "$SSH_HOST" "$DOCKER exec $CONTAINER grep -c \
+  'registerPluginTools(pluginKey, manifest)' \
+  /app/server/dist/services/plugin-loader.js 2>/dev/null || echo 0")
+
+if [[ "$LOADER_UNFIXED" -eq 0 ]] && [[ "$LOADER_ALREADY" -eq 0 ]]; then
+  echo ""
+  echo "  ⚠️  The unfixed registerPluginTools(pluginKey, manifest) signature was NOT found in plugin-loader.js."
+  echo "     This means either:"
+  echo "       a) Paperclip has been upgraded and the bug is fixed upstream — no patch needed."
+  echo "       b) The compiled JS structure changed — manual inspection required."
+  echo ""
+  echo "  Inspect with:"
+  echo "    ssh $SSH_HOST \"$DOCKER exec $CONTAINER grep -n 'registerPluginTools' /app/server/dist/services/plugin-loader.js\""
+  echo ""
+  echo "  Skipping patch to avoid corrupting files. If tools still fail, check the above."
   exit 0
 fi
 
