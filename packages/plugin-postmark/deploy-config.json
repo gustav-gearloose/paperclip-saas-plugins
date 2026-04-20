@@ -1,0 +1,6 @@
+{
+  "configJson": {},
+  "secretRefs": {
+    "serverTokenRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}
