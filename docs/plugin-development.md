@@ -540,6 +540,156 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_smtpPort=465 \
   PLUGIN_CONFIG_displayName=<sender-display-name> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-email
+
+# Microsoft Teams (3 secrets — Azure AD client credentials)
+PC_PASSWORD=<pw> \
+  TENANTIDREF=<azure-tenant-id> \
+  CLIENTIDREF=<azure-client-id> \
+  CLIENTSECRETREF=<azure-client-secret> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-teams
+
+# Fortnox (2 secrets — access + refresh token)
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<fortnox-access-token> \
+  REFRESHTOKENREF=<fortnox-refresh-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-fortnox
+
+# Pipedrive (1 secret)
+PC_PASSWORD=<pw> APITOKENREF=<pipedrive-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-pipedrive
+
+# Intercom (1 secret)
+PC_PASSWORD=<pw> ACCESSTOKENREF=<intercom-access-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-intercom
+
+# Jira (1 secret + 2 configJson fields)
+PC_PASSWORD=<pw> \
+  APITOKENREF=<jira-api-token> \
+  PLUGIN_CONFIG_domain=<your-company>.atlassian.net \
+  PLUGIN_CONFIG_email=<atlassian-email> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-jira
+
+# GitHub (1 secret + optional owner config)
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<github-personal-access-token> \
+  PLUGIN_CONFIG_defaultOwner=<github-org-or-user> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-github
+
+# Freshdesk (1 secret + 1 configJson field)
+PC_PASSWORD=<pw> \
+  APIKEYREF=<freshdesk-api-key> \
+  PLUGIN_CONFIG_domain=<your-company>.freshdesk.com \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-freshdesk
+
+# Stripe (1 secret)
+PC_PASSWORD=<pw> APIKEYREF=<stripe-secret-key> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-stripe
+
+# WooCommerce (2 secrets + 1 configJson field)
+PC_PASSWORD=<pw> \
+  CONSUMERKEYREF=<woocommerce-consumer-key> \
+  CONSUMERSECRETREF=<woocommerce-consumer-secret> \
+  PLUGIN_CONFIG_siteUrl=https://your-store.com \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-woocommerce
+
+# Shopify (1 secret + 1 configJson field)
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<shopify-admin-api-access-token> \
+  PLUGIN_CONFIG_shopDomain=your-store.myshopify.com \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-shopify
+
+# monday.com (1 secret)
+PC_PASSWORD=<pw> APITOKENREF=<monday-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-monday
+
+# Asana (1 secret)
+PC_PASSWORD=<pw> ACCESSTOKENREF=<asana-personal-access-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-asana
+
+# Salesforce (1 secret + 1 configJson field)
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<salesforce-oauth-access-token> \
+  PLUGIN_CONFIG_instanceUrl=https://your-org.my.salesforce.com \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-salesforce
+
+# Trello (2 secrets)
+PC_PASSWORD=<pw> \
+  APIKEYREF=<trello-api-key> \
+  APITOKENREF=<trello-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-trello
+
+# ClickUp (1 secret)
+PC_PASSWORD=<pw> APITOKENREF=<clickup-personal-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-clickup
+
+# Todoist (1 secret)
+PC_PASSWORD=<pw> APITOKENREF=<todoist-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-todoist
+
+# Airtable (1 secret)
+PC_PASSWORD=<pw> ACCESSTOKENREF=<airtable-personal-access-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-airtable
+
+# Harvest (1 secret + 1 configJson field)
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<harvest-access-token> \
+  PLUGIN_CONFIG_accountId=<harvest-account-id> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-harvest
+
+# Typeform (1 secret)
+PC_PASSWORD=<pw> ACCESSTOKENREF=<typeform-personal-access-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-typeform
+
+# Calendly (1 secret)
+PC_PASSWORD=<pw> ACCESSTOKENREF=<calendly-personal-access-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-calendly
+
+# Mailchimp (1 secret + 1 configJson field)
+PC_PASSWORD=<pw> \
+  APIKEYREF=<mailchimp-api-key> \
+  PLUGIN_CONFIG_serverPrefix=us1 \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-mailchimp
+
+# ActiveCampaign (1 secret + 1 configJson field)
+PC_PASSWORD=<pw> \
+  APIKEYREF=<activecampaign-api-key> \
+  PLUGIN_CONFIG_baseUrl=https://your-account.api-us1.com \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-activecampaign
+
+# Twilio (2 secrets)
+PC_PASSWORD=<pw> \
+  ACCOUNTSIDREF=<twilio-account-sid> \
+  AUTHTOKENREF=<twilio-auth-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-twilio
+
+# Brevo (1 secret)
+PC_PASSWORD=<pw> APIKEYREF=<brevo-api-key> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-brevo
+
+# SendGrid (1 secret)
+PC_PASSWORD=<pw> APIKEYREF=<sendgrid-api-key> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-sendgrid
+
+# Klaviyo (1 secret)
+PC_PASSWORD=<pw> APIKEYREF=<klaviyo-private-api-key> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-klaviyo
+
+# Zoho CRM (1 secret + 1 configJson field)
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<zoho-oauth-access-token> \
+  PLUGIN_CONFIG_domain=zohoapis.com \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-zoho-crm
+
+# Mailgun (1 secret + 2 configJson fields)
+PC_PASSWORD=<pw> \
+  APIKEYREF=<mailgun-private-api-key> \
+  PLUGIN_CONFIG_domain=mg.example.com \
+  PLUGIN_CONFIG_region=us \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-mailgun
+
+# Postmark (1 secret)
+PC_PASSWORD=<pw> SERVERTOKENREF=<postmark-server-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-postmark
 ```
 
 **Env var → secretRef key mapping** (rule: uppercase the camelCase key):
@@ -549,15 +699,25 @@ PC_PASSWORD=<pw> \
 | Dinero | `dineroClientIdRef` | `DINEROCLIENTIDREF` |
 | Dinero | `dineroClientSecretRef` | `DINEROCLIENTSECRETREF` |
 | Dinero | `dineroApiKeyRef` | `DINEROAPIKEYREF` |
-| Billy, HubSpot | `accessTokenRef` | `ACCESSTOKENREF` |
+| Billy, Fortnox, HubSpot, Intercom, Shopify, Asana, Airtable, Typeform, Calendly | `accessTokenRef` | `ACCESSTOKENREF` |
 | e-conomic | `appSecretTokenRef` | `APPSECRETTOKENREF` |
 | e-conomic | `agreementGrantTokenRef` | `AGREEMENTGRANTTOKENREF` |
-| Zendesk | `apiTokenRef` | `APITOKENREF` |
+| Zendesk, Pipedrive, Jira, ClickUp, Todoist, monday.com, Trello | `apiTokenRef` | `APITOKENREF` |
 | Slack | `botTokenRef` | `BOTTOKENREF` |
 | Google Sheets | `serviceAccountJsonRef` | `SERVICEACCOUNTJSONREF` |
 | Notion | `integrationTokenRef` | `INTEGRATIONTOKENREF` |
-| Linear | `apiKeyRef` | `APIKEYREF` |
+| Linear, Freshdesk, Stripe, Mailchimp, ActiveCampaign, Brevo, SendGrid, Klaviyo, Zoho CRM, Mailgun | `apiKeyRef` | `APIKEYREF` |
 | Email | `emailPasswordRef` | `EMAILPASSWORDREF` |
+| Teams | `tenantIdRef` | `TENANTIDREF` |
+| Teams | `clientIdRef` | `CLIENTIDREF` |
+| Teams | `clientSecretRef` | `CLIENTSECRETREF` |
+| Fortnox | `refreshTokenRef` | `REFRESHTOKENREF` |
+| WooCommerce | `consumerKeyRef` | `CONSUMERKEYREF` |
+| WooCommerce | `consumerSecretRef` | `CONSUMERSECRETREF` |
+| Twilio | `accountSidRef` | `ACCOUNTSIDREF` |
+| Twilio | `authTokenRef` | `AUTHTOKENREF` |
+| Trello | `apiKeyRef` | `APIKEYREF` |
+| Postmark | `serverTokenRef` | `SERVERTOKENREF` |
 
 After this step, `customers/<slug>/plugin-*.json` files exist with resolved secret UUIDs. Commit them.
 
