@@ -204,6 +204,52 @@ if ! grep -q "*.secrets" "$REPO_ROOT/.gitignore" 2>/dev/null; then
   ok "Added *.secrets to .gitignore"
 fi
 
+# ── apply container patches ──────────────────────────────────────────────────
+#
+# The pluginDbId bug in Paperclip's compiled JS causes all plugin tool calls to
+# fail with "worker not running". patch-paperclip-container.sh fixes it.
+# Must be applied (and container restarted) before provisioning plugins.
+
+section "Container patches (required for plugin tools)"
+
+ask "Apply Paperclip container patches now? Fixes pluginDbId bug — required for tools to work. [Y/n]:"
+read -r DO_PATCH
+DO_PATCH="${DO_PATCH:-y}"
+
+if [[ "$DO_PATCH" =~ ^[Yy]$ ]]; then
+  info "Running patch-paperclip-container.sh $CUSTOMER..."
+  if "$SCRIPT_DIR/patch-paperclip-container.sh" "$CUSTOMER"; then
+    ok "Container patches applied (or already present / upstream-fixed)"
+    info "Restarting container to pick up patches..."
+    if ssh "$SSH_HOST" "DOCKER_HOST=unix:///var/run/docker.sock docker restart $CONTAINER" 2>/dev/null; then
+      ok "Container restarted"
+      # Wait up to 45 s for Paperclip to come back healthy
+      ATTEMPTS=0
+      while ! ssh "$SSH_HOST" "curl -sf $PC_HOST/api/health > /dev/null 2>&1"; do
+        ATTEMPTS=$((ATTEMPTS + 1))
+        [[ $ATTEMPTS -ge 15 ]] && break
+        echo -n "."; sleep 3
+      done
+      echo ""
+      if [[ $ATTEMPTS -lt 15 ]]; then
+        ok "Paperclip healthy after restart"
+      else
+        warn "Health check timed out — Paperclip may still be starting. Wait a moment and verify."
+      fi
+    else
+      warn "Container restart failed — run manually: ssh $SSH_HOST 'docker restart $CONTAINER'"
+    fi
+  else
+    warn "Patch script exited with error — you can retry later:"
+    warn "  ./scripts/patch-paperclip-container.sh $CUSTOMER"
+    warn "Plugin tools will NOT work until patches are applied and container restarted."
+  fi
+else
+  info "Skipping patches."
+  warn "Plugin tools will NOT work until patches are applied and container restarted."
+  warn "  ./scripts/patch-paperclip-container.sh $CUSTOMER && ssh $SSH_HOST 'docker restart $CONTAINER'"
+fi
+
 # ── plugin lookup (Bash 3 compatible — no declare -A) ─────────────────────────
 
 plugin_dir() {
