@@ -1,7 +1,7 @@
 {
   "name": "@gearloose/paperclip-plugin-typeform",
   "version": "0.1.0",
-  "description": "Typeform integration for Paperclip AI",
+  "description": "Typeform integration for Paperclip AI — forms, responses, and workspaces",
   "type": "module",
   "scripts": {
     "build": "tsc",

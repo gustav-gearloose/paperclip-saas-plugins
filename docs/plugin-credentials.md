@@ -959,3 +959,19 @@ APITOKENREF=<secret-uuid> \
   PLUGIN_CONFIG_accountId=<account-id> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-harvest
 ```
+
+## Typeform (51)
+
+**Where to get credentials:**
+1. Log in to Typeform → click your avatar → **Settings** → **Personal tokens**
+2. Click **Generate a new token** — give it a name, set expiry, and copy the token
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `APITOKENREF` | UUID of the Paperclip secret holding the Typeform personal access token |
+
+```bash
+APITOKENREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-typeform
+```
