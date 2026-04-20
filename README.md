@@ -134,17 +134,62 @@ customers/
     ...
 
 packages/
-  plugin-dinero/      # Dinero accounting plugin (10 tools)
-  plugin-billy/       # Billy accounting plugin (10 tools)
-  plugin-economic/    # e-conomic accounting plugin (11 tools)
-  plugin-email/       # IMAP/SMTP email plugin (7 tools)
-  plugin-google-sheets/ # Google Sheets plugin (6 tools)
-  plugin-hubspot/     # HubSpot CRM plugin (14 tools)
-  plugin-linear/      # Linear issue tracking plugin (9 tools)
-  plugin-notion/      # Notion plugin (9 tools)
-  plugin-slack/       # Slack messaging plugin (9 tools)
-  plugin-zendesk/     # Zendesk support plugin (10 tools)
-  mcp-plugin-proxy/   # MCP server that proxies plugin tools to Claude
+  # Accounting / Finance
+  plugin-dinero/        # Dinero accounting (10 tools)
+  plugin-billy/         # Billy accounting (10 tools)
+  plugin-economic/      # e-conomic accounting (11 tools)
+  plugin-fortnox/       # Fortnox accounting (10 tools)
+  plugin-stripe/        # Stripe payments (10 tools)
+  plugin-harvest/       # Harvest time tracking (10 tools)
+
+  # CRM / Sales
+  plugin-hubspot/       # HubSpot CRM (14 tools)
+  plugin-pipedrive/     # Pipedrive CRM (11 tools)
+  plugin-salesforce/    # Salesforce CRM (10 tools)
+  plugin-zoho-crm/      # Zoho CRM (11 tools)
+
+  # Email / Marketing
+  plugin-email/         # IMAP/SMTP email (7 tools)
+  plugin-brevo/         # Brevo email (10 tools)
+  plugin-sendgrid/      # SendGrid email (10 tools)
+  plugin-postmark/      # Postmark email (14 tools)
+  plugin-mailgun/       # Mailgun email (11 tools)
+  plugin-mailchimp/     # Mailchimp marketing (10 tools)
+  plugin-klaviyo/       # Klaviyo marketing (10 tools)
+  plugin-activecampaign/ # ActiveCampaign marketing (10 tools)
+
+  # Communication / Collaboration
+  plugin-slack/         # Slack messaging (9 tools)
+  plugin-teams/         # Microsoft Teams (8 tools)
+  plugin-twilio/        # Twilio SMS/voice (10 tools)
+
+  # Project Management
+  plugin-notion/        # Notion (9 tools)
+  plugin-linear/        # Linear issues (9 tools)
+  plugin-jira/          # Jira issues (10 tools)
+  plugin-asana/         # Asana tasks (10 tools)
+  plugin-monday/        # monday.com (10 tools)
+  plugin-clickup/       # ClickUp (10 tools)
+  plugin-todoist/       # Todoist tasks (10 tools)
+  plugin-trello/        # Trello boards (10 tools)
+  plugin-airtable/      # Airtable bases (10 tools)
+
+  # Customer Support
+  plugin-zendesk/       # Zendesk support (10 tools)
+  plugin-freshdesk/     # Freshdesk support (10 tools)
+  plugin-intercom/      # Intercom (10 tools)
+
+  # Developer / Data
+  plugin-github/        # GitHub (10 tools)
+  plugin-google-sheets/ # Google Sheets (6 tools)
+  plugin-typeform/      # Typeform forms (10 tools)
+  plugin-calendly/      # Calendly scheduling (10 tools)
+
+  # eCommerce
+  plugin-shopify/       # Shopify (10 tools)
+  plugin-woocommerce/   # WooCommerce (10 tools)
+
+  mcp-plugin-proxy/     # MCP server that proxies plugin tools to Claude
 
 scripts/
   setup-vps.sh              # Provision a fresh VPS
@@ -170,18 +215,78 @@ docs/
 
 ## Plugin library
 
+**39 plugins / ~390 tools** — all validate clean with zero external npm dependencies.
+
+### Accounting / Finance
 | Plugin | Package | Tools | Auth |
 |--------|---------|-------|------|
-| Dinero | `plugin-dinero` | 10 | OAuth2 + API key |
-| Billy | `plugin-billy` | 10 | API token |
-| e-conomic | `plugin-economic` | 11 | App + grant tokens |
-| Email | `plugin-email` | 7 | IMAP/SMTP credentials |
-| Google Sheets | `plugin-google-sheets` | 6 | Service account JSON |
+| Dinero | `plugin-dinero` | 10 | OAuth2 PKCE + refresh |
+| Billy | `plugin-billy` | 10 | X-Access-Token |
+| e-conomic | `plugin-economic` | 11 | Dual header (app + grant token) |
+| Fortnox | `plugin-fortnox` | 10 | OAuth2 + refresh rotation |
+| Stripe | `plugin-stripe` | 10 | Bearer token |
+| Harvest | `plugin-harvest` | 10 | Bearer token |
+
+### CRM / Sales
+| Plugin | Package | Tools | Auth |
+|--------|---------|-------|------|
 | HubSpot | `plugin-hubspot` | 14 | Bearer token |
-| Linear | `plugin-linear` | 9 | Personal API key |
-| Notion | `plugin-notion` | 9 | Integration token |
+| Pipedrive | `plugin-pipedrive` | 11 | API token query param |
+| Salesforce | `plugin-salesforce` | 10 | Bearer (OAuth2 access token) |
+| Zoho CRM | `plugin-zoho-crm` | 11 | Zoho-oauthtoken + domain config |
+
+### Email / Marketing
+| Plugin | Package | Tools | Auth |
+|--------|---------|-------|------|
+| Email | `plugin-email` | 7 | IMAP/SMTP credentials |
+| Brevo | `plugin-brevo` | 10 | api-key header |
+| SendGrid | `plugin-sendgrid` | 10 | Bearer token |
+| Postmark | `plugin-postmark` | 14 | X-Postmark-Server-Token |
+| Mailgun | `plugin-mailgun` | 11 | Basic auth (api:key) + domain |
+| Mailchimp | `plugin-mailchimp` | 10 | Bearer token |
+| Klaviyo | `plugin-klaviyo` | 10 | Klaviyo-API-Key header |
+| ActiveCampaign | `plugin-activecampaign` | 10 | Api-Token header + base URL |
+
+### Communication / Collaboration
+| Plugin | Package | Tools | Auth |
+|--------|---------|-------|------|
 | Slack | `plugin-slack` | 9 | Bot token |
-| Zendesk | `plugin-zendesk` | 10 | Email + API token |
+| Microsoft Teams | `plugin-teams` | 8 | Azure AD client credentials |
+| Twilio | `plugin-twilio` | 10 | Basic auth (accountSid:authToken) |
+
+### Project Management
+| Plugin | Package | Tools | Auth |
+|--------|---------|-------|------|
+| Notion | `plugin-notion` | 9 | Bearer (integration token) |
+| Linear | `plugin-linear` | 9 | Bearer (personal API key) |
+| Jira | `plugin-jira` | 10 | Basic auth (email + API token) |
+| Asana | `plugin-asana` | 10 | Bearer token |
+| monday.com | `plugin-monday` | 10 | Authorization: token (no Bearer) |
+| ClickUp | `plugin-clickup` | 10 | Bearer token |
+| Todoist | `plugin-todoist` | 10 | Bearer token |
+| Trello | `plugin-trello` | 10 | API key + token query params |
+| Airtable | `plugin-airtable` | 10 | Bearer token |
+
+### Customer Support
+| Plugin | Package | Tools | Auth |
+|--------|---------|-------|------|
+| Zendesk | `plugin-zendesk` | 10 | Basic auth (email/token:apikey) |
+| Freshdesk | `plugin-freshdesk` | 10 | Basic auth (apiKey:X) + domain |
+| Intercom | `plugin-intercom` | 10 | Bearer token |
+
+### Developer / Data / Other
+| Plugin | Package | Tools | Auth |
+|--------|---------|-------|------|
+| GitHub | `plugin-github` | 10 | Bearer token |
+| Google Sheets | `plugin-google-sheets` | 6 | Service account JWT (RS256) |
+| Typeform | `plugin-typeform` | 10 | Bearer token |
+| Calendly | `plugin-calendly` | 10 | Bearer token |
+
+### eCommerce
+| Plugin | Package | Tools | Auth |
+|--------|---------|-------|------|
+| Shopify | `plugin-shopify` | 10 | X-Shopify-Access-Token + shop domain |
+| WooCommerce | `plugin-woocommerce` | 10 | Basic auth (consumerKey:secret) + site URL |
 
 All plugins: zero external npm dependencies (pure fetch + Node builtins + plugin-sdk).
 

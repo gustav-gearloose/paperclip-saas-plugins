@@ -144,6 +144,9 @@ SMOKE_TOOLS=(
   "brevo|brevo_get_account_info|{}"
   "sendgrid|sendgrid_list_lists|{}"
   "klaviyo|klaviyo_list_lists|{}"
+  "zoho-crm|zoho_crm_list_users|{}"
+  "mailgun|mailgun_list_domains|{}"
+  "postmark|postmark_get_server|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
