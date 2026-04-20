@@ -9,8 +9,8 @@ Status as of 2026-04-20. Validated on NUC instance (Paperclip self-hosted via Do
 | Plugin installation | ✅ | `POST /api/plugins/install` with `isLocalPath: true` |
 | Tool declaration | ✅ | Must be in manifest `tools[]` array AND registered in worker |
 | Tool execution via API | ✅ | `POST /api/plugins/tools/execute` returns real data |
-| MCP proxy (standalone) | ✅ | Loads 13 tools (8 Dinero + 5 Email), starts correctly |
-| Agent tool use in conversations | 🔄 | Deploy script ready, blocked on NUC wake |
+| MCP proxy (standalone) | ✅ | Refreshes tool list on every ListTools call — picks up new plugins automatically |
+| Agent tool use in conversations | 🔄 | Deploy script ready; pending NUC + MCP wiring |
 
 ## Architecture
 
@@ -172,26 +172,24 @@ Body: { "adapterConfig": { "extraArgs": ["--settings", "/paperclip/mcp-proxy-con
 --settings <path>   # loads additional settings (mcpServers, etc.) from JSON file
 ```
 
-## Installed Plugins (NUC, as of 2026-04-19)
+## Plugin Library (as of 2026-04-20) — 10 plugins, 95 tools
 
-| Plugin | ID | Tools | Status |
-|--------|----|-------|--------|
-| Dinero | c708db45-... | 8 | ✅ executing |
-| Email (IMAP/SMTP) | bd4a0613-... | 5 | ✅ executing |
-| Hello World | 20d7bd2e-... | - | ✅ ready |
-| Slack Chat OS | ad767cf3-... | 0 | ⚠️ needs signing secret |
+All built, TypeScript-clean, manifest+worker parity verified by `scripts/validate-plugins.sh`.
 
-## Next Plugins to Build / Status
+| Plugin | Package | Tools | Auth pattern | Deploy status |
+|--------|---------|-------|--------------|---------------|
+| Dinero | `packages/plugin-dinero` | 10 | OAuth2 PKCE bearer (auto-refresh) | ✅ installed on NUC |
+| Email | `packages/plugin-email` | 7 | IMAP/SMTP credentials | ✅ installed on NUC |
+| Google Sheets | `packages/plugin-google-sheets` | 6 | Service account JWT (RS256) | 🔄 pending NUC deploy |
+| e-conomic | `packages/plugin-economic` | 11 | Dual header (AppSecretToken + GrantToken) | 🔄 pending customer creds |
+| HubSpot | `packages/plugin-hubspot` | 14 | Bearer token | 🔄 pending customer creds |
+| Billy | `packages/plugin-billy` | 10 | X-Access-Token header | 🔄 pending customer creds |
+| Zendesk | `packages/plugin-zendesk` | 10 | Basic auth (email:apikey) | 🔄 pending customer creds |
+| Slack | `packages/plugin-slack` | 9 | xoxb-... bot token | 🔄 pending customer creds |
+| Notion | `packages/plugin-notion` | 9 | Bearer (internal integration token) | 🔄 pending customer creds |
+| Linear | `packages/plugin-linear` | 9 | Bearer (personal API key, GraphQL) | 🔄 pending customer creds |
 
-| Plugin | Package | Status |
-|--------|---------|--------|
-| Google Sheets | `packages/plugin-google-sheets` | ✅ built, ready to deploy |
-| e-conomic | `packages/plugin-economic` | ✅ built, ready to deploy |
-| Billy | `packages/plugin-billy` | ✅ built, ready to deploy |
-| HubSpot CRM | `packages/plugin-hubspot` | ✅ built, ready to deploy |
-| Zendesk | `packages/plugin-zendesk` | ✅ built, ready to deploy |
-
-Each follows the same manifest+worker pattern. Estimated 2-4 hours per plugin using existing plugins as template.
+**Key constraint:** All plugins use zero external npm deps — only Node builtins + `@paperclipai/plugin-sdk`.
 
 ### Google Sheets — Setup Notes
 
