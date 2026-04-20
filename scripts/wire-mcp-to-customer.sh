@@ -54,8 +54,9 @@ PROXY_SRC="$REPO_ROOT/packages/mcp-plugin-proxy"
 
 info "Building MCP proxy..."
 cd "$PROXY_SRC"
-npm install --ignore-scripts 2>&1 | tail -2
-npm run build 2>&1 | tail -2
+install_out=$(npm install --ignore-scripts 2>&1) || { echo "$install_out"; die "npm install failed for mcp-plugin-proxy"; }
+build_out=$(npm run build 2>&1) || { echo "$build_out"; die "npm build failed for mcp-plugin-proxy"; }
+echo "$build_out" | tail -2
 cd "$REPO_ROOT"
 
 # ── step 2: copy proxy into container ─────────────────────────────────────────
@@ -67,52 +68,12 @@ scp -q "$PROXY_SRC/package.json" "$SSH_HOST:~/mcp-proxy-package.json"
 ssh "$SSH_HOST" "$DOCKER cp ~/mcp-proxy-index.js $CONTAINER:$PROXY_PATH/index.js && \
                   $DOCKER cp ~/mcp-proxy-package.json $CONTAINER:$PROXY_PATH/package.json && \
                   rm ~/mcp-proxy-index.js ~/mcp-proxy-package.json"
-ssh "$SSH_HOST" "$DOCKER exec $CONTAINER bash -c 'cd $PROXY_PATH && npm install --ignore-scripts 2>&1 | tail -2'"
+ssh "$SSH_HOST" "$DOCKER exec $CONTAINER bash -c 'set -e; cd $PROXY_PATH && npm install --ignore-scripts'" \
+  || die "npm install inside container failed for mcp-proxy"
 info "Proxy installed at $PROXY_PATH"
 
-# ── step 3: write MCP config to /paperclip volume ────────────────────────────
-
-info "Writing MCP config to $MCP_CONFIG_PATH..."
-# Build JSON locally, pipe into container via ssh+tee (avoids Node require/ESM issues)
-MCP_JSON=$(cat <<MCPEOF
-{
-  "skipDangerousModePermissionPrompt": true,
-  "mcpServers": {
-    "paperclip-plugins": {
-      "type": "stdio",
-      "command": "/usr/local/bin/node",
-      "args": ["$PROXY_PATH/index.js"],
-      "env": {
-        "PC_HOST": "$PC_HOST_INTERNAL",
-        "PC_EMAIL": "$PC_EMAIL",
-        "PC_PASSWORD": "$PC_PASSWORD",
-        "PC_COMPANY_ID": "$PC_COMPANY_ID"
-      }
-    }
-  }
-}
-MCPEOF
-)
-echo "$MCP_JSON" | ssh "$SSH_HOST" "$DOCKER exec -i $CONTAINER tee $MCP_CONFIG_PATH" > /dev/null
-info "Written: $MCP_CONFIG_PATH"
-
-# ── step 4: verify proxy starts ───────────────────────────────────────────────
-
-info "Verifying proxy starts inside container (6s test)..."
-proxy_out=$(ssh "$SSH_HOST" "PC_PW='$PC_PASSWORD' $DOCKER exec \
-  -e PC_HOST=$PC_HOST_INTERNAL \
-  -e PC_EMAIL=$PC_EMAIL \
-  -e PC_PASSWORD=\$PC_PW \
-  -e PC_COMPANY_ID=$PC_COMPANY_ID \
-  $CONTAINER timeout 6 node $PROXY_PATH/index.js 2>&1" || true)
-if echo "$proxy_out" | grep -qi "Missing required env\|Cannot find module\|SyntaxError\|Error:"; then
-  echo "$proxy_out"
-  die "Proxy failed to start — check output above"
-else
-  echo "  proxy stderr: ${proxy_out:-<no output — likely started OK>}"
-fi
-
-# ── step 5: authenticate ───────────────────────────────────────────────────────
+# ── step 3: authenticate and resolve agent ID ─────────────────────────────────
+# Do this before writing MCP config so we can include PC_AGENT_ID in the env block.
 
 info "Authenticating with Paperclip at $PC_HOST..."
 ssh "$SSH_HOST" "curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
@@ -120,8 +81,6 @@ ssh "$SSH_HOST" "curl -s -X POST '$PC_HOST/api/auth/sign-in/email' \
   -H 'Origin: $PC_HOST' \
   -c /tmp/pc_wire_cookies.txt \
   -d '{\"email\":\"$PC_EMAIL\",\"password\":\"$PC_PASSWORD\"}' > /dev/null"
-
-# ── step 6: resolve agent ID ─────────────────────────────────────────────────
 
 if [[ -z "$AGENT_ID" ]]; then
   info "No agent-id given — looking up agents..."
@@ -147,7 +106,51 @@ else:
   info "Using agent: $AGENT_ID"
 fi
 
-# ── step 7: patch agent ────────────────────────────────────────────────────────
+# ── step 4: write MCP config to /paperclip volume ────────────────────────────
+
+info "Writing MCP config to $MCP_CONFIG_PATH..."
+# Build JSON locally, pipe into container via ssh+tee (avoids Node require/ESM issues)
+MCP_JSON=$(cat <<MCPEOF
+{
+  "skipDangerousModePermissionPrompt": true,
+  "mcpServers": {
+    "paperclip-plugins": {
+      "type": "stdio",
+      "command": "/usr/local/bin/node",
+      "args": ["$PROXY_PATH/index.js"],
+      "env": {
+        "PC_HOST": "$PC_HOST_INTERNAL",
+        "PC_EMAIL": "$PC_EMAIL",
+        "PC_PASSWORD": "$PC_PASSWORD",
+        "PC_COMPANY_ID": "$PC_COMPANY_ID",
+        "PC_AGENT_ID": "$AGENT_ID"
+      }
+    }
+  }
+}
+MCPEOF
+)
+echo "$MCP_JSON" | ssh "$SSH_HOST" "$DOCKER exec -i $CONTAINER tee $MCP_CONFIG_PATH" > /dev/null
+info "Written: $MCP_CONFIG_PATH"
+
+# ── step 5: verify proxy starts ───────────────────────────────────────────────
+
+info "Verifying proxy starts inside container (6s test)..."
+proxy_out=$(ssh "$SSH_HOST" "PC_PW='$PC_PASSWORD' $DOCKER exec \
+  -e PC_HOST=$PC_HOST_INTERNAL \
+  -e PC_EMAIL=$PC_EMAIL \
+  -e PC_PASSWORD=\$PC_PW \
+  -e PC_COMPANY_ID=$PC_COMPANY_ID \
+  -e PC_AGENT_ID=$AGENT_ID \
+  $CONTAINER timeout 6 node $PROXY_PATH/index.js 2>&1" || true)
+if echo "$proxy_out" | grep -qi "Missing required env\|Cannot find module\|SyntaxError\|Error:"; then
+  echo "$proxy_out"
+  die "Proxy failed to start — check output above"
+else
+  echo "  proxy stderr: ${proxy_out:-<no output — likely started OK>}"
+fi
+
+# ── step 6: patch agent ────────────────────────────────────────────────────────
 
 info "Patching agent $AGENT_ID with extraArgs..."
 PATCH_RESULT=$(ssh "$SSH_HOST" "curl -s -X PATCH '$PC_HOST/api/agents/$AGENT_ID' \
