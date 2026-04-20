@@ -1,0 +1,8 @@
+{
+  "configJson": {
+    "accountId": "REPLACE_WITH_HARVEST_ACCOUNT_ID"
+  },
+  "secretRefs": {
+    "apiTokenRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}

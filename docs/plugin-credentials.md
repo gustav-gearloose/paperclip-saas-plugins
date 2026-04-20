@@ -532,3 +532,20 @@ PC_PASSWORD=<pw> \
   APIKEYREF=<airtable-personal-access-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-airtable
 ```
+
+## Harvest (time tracking)
+
+**Env vars:** `APITOKENREF`, `PLUGIN_CONFIG_accountId`
+
+**Where to find them:**
+1. Log in to Harvest → go to <https://id.getharvest.com/developers>
+2. Click **Create new personal access token**, give it a name, and copy the token
+3. Your **Account ID** is shown on the same page (a numeric ID)
+4. Store the token as a Paperclip secret; the Account ID goes into plugin config
+
+```bash
+PC_PASSWORD=<pw> \
+  APITOKENREF=<harvest-personal-access-token> \
+  PLUGIN_CONFIG_accountId=<harvest-account-id> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-harvest
+```
