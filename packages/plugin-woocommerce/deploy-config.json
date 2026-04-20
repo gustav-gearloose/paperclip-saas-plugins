@@ -1,0 +1,9 @@
+{
+  "configJson": {
+    "siteUrl": ""
+  },
+  "secretRefs": {
+    "consumerKeyRef": { "uuid": "REPLACE_WITH_SECRET_UUID" },
+    "consumerSecretRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}

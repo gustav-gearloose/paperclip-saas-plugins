@@ -367,3 +367,23 @@ PC_PASSWORD=<pw> \
   SECRETKEYREF=<stripe-secret-key> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-stripe
 ```
+
+---
+
+## WooCommerce
+
+**Env vars:** `CONSUMERKEYREF`, `CONSUMERSECRETREF`, `PLUGIN_CONFIG_siteUrl`
+
+**Where to find them:**
+1. Log in to your WordPress admin → **WooCommerce → Settings → Advanced → REST API**
+2. Click **Add key** — give it a name, set permissions to **Read/Write**
+3. Copy the **Consumer Key** and **Consumer Secret** (shown only once after creation)
+4. Your **store URL** is the root of your WordPress site, e.g. `https://myshop.com`
+
+```bash
+PC_PASSWORD=<pw> \
+  CONSUMERKEYREF=<woocommerce-consumer-key> \
+  CONSUMERSECRETREF=<woocommerce-consumer-secret> \
+  PLUGIN_CONFIG_siteUrl=https://myshop.com \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-woocommerce
+```

@@ -126,6 +126,7 @@ SMOKE_TOOLS=(
   "github|github_list_repos|{}"
   "freshdesk|freshdesk_list_agents|{}"
   "stripe|stripe_list_products|{}"
+  "woocommerce|woocommerce_list_orders|{\"per_page\":1}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
