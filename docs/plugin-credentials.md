@@ -227,3 +227,32 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_tenantId=<azure-tenant-id> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-teams
 ```
+
+---
+
+## Fortnox
+
+**Env vars:** `ACCESSTOKENREF`, `REFRESHTOKENREF`, `CLIENTIDREF`, `CLIENTSECRETREF`
+
+**Where to find them:**
+1. Log in to [Fortnox Developer Portal](https://developer.fortnox.se) and create an app
+2. Under your app settings, note the **Client ID** and **Client Secret**
+3. Authorize the app against the customer's Fortnox company — this produces an **Authorization Code**
+4. Exchange the code for tokens using Fortnox's OAuth2 flow:
+   ```
+   POST https://accounts.fortnox.se/oauth-v1/token
+   grant_type=authorization_code&code=<code>&redirect_uri=<redirect>
+   ```
+   This returns both `access_token` and `refresh_token`
+5. The plugin uses the refresh token to keep the access token fresh automatically
+
+**Required scopes:** `companyinformation`, `bookkeeping`, `invoice`, `customer`, `article`, `supplier`
+
+```bash
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<fortnox-access-token> \
+  REFRESHTOKENREF=<fortnox-refresh-token> \
+  CLIENTIDREF=<fortnox-client-id> \
+  CLIENTSECRETREF=<fortnox-client-secret> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-fortnox
+```

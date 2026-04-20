@@ -118,6 +118,8 @@ SMOKE_TOOLS=(
   "notion|notion_search|{\"query\":\"\"}"
   "linear|linear_list_teams|{}"
   "email|email_list_folders|{}"
+  "teams|teams_list_teams|{}"
+  "fortnox|fortnox_list_customers|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
