@@ -78,6 +78,15 @@ Exit 0 = all good. Exit 1 = check the output for which plugin/tool failed.
 
 ## Day-2 operations
 
+### Quick status check
+
+```bash
+./scripts/status.sh <customer-slug>  # one customer
+./scripts/status.sh                  # all customers
+```
+
+Shows: SSH reachable, container running, Paperclip health, installed plugins + statuses, agent MCP wiring, tool count. No plugin tool execution — safe to run any time.
+
 ### Redeploy a plugin after a code update
 
 ```bash
@@ -93,9 +102,9 @@ PC_PASSWORD=<pw> ./scripts/post-upgrade.sh <customer-slug>
 
 The compiled JS patches (bug fix for tool registration) are lost on container rebuild — `post-upgrade.sh` handles all of it.
 
-### Re-wire MCP proxy after upgrade
+### Re-wire MCP proxy (manual)
 
-`wire-mcp-to-customer.sh` re-copies the proxy and re-npm-installs inside the container. Re-run it after any upgrade:
+`post-upgrade.sh` rewires automatically. If you need to re-wire standalone (e.g. after manually changing credentials):
 
 ```bash
 PC_PASSWORD=<pw> ./scripts/wire-mcp-to-customer.sh <customer-slug>
@@ -130,6 +139,7 @@ packages/
 scripts/
   setup-vps.sh              # Provision a fresh VPS
   onboard-customer.sh       # Interactive new-customer wizard
+  status.sh                 # Quick health dashboard (no tool execution)
   provision-plugin.sh       # First-time plugin deploy (creates secrets)
   deploy-for-customer.sh    # Redeploy a plugin to a customer
   deploy-plugin.sh          # Low-level: build + copy + install one plugin
