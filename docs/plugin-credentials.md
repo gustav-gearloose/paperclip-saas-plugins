@@ -1107,3 +1107,25 @@ CLIENTIDREF=<secret-uuid> \
   PLUGIN_CONFIG_tenantId=Cust12345 \
   ./scripts/provision-plugin.sh <slug> packages/plugin-superoffice
 ```
+
+## 57. Planday
+
+**Where to get credentials:**
+1. Log in to [Planday](https://app.planday.com) → Settings → API → Create an API application
+2. Copy the **Client ID** (no client secret is used for public apps)
+3. Authorize the app via the OAuth2 authorization code flow (use `https://id.planday.com/connect/authorize`)
+4. Exchange the auth code for tokens at `https://id.planday.com/connect/token`
+5. Store the **refresh token** as a Paperclip secret
+6. Refresh tokens rotate on each exchange — the plugin stores the latest automatically
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `CLIENTIDREF` | UUID of the Paperclip secret holding your Planday OAuth2 client ID |
+| `REFRESHTOKENREF` | UUID of the Paperclip secret holding your Planday OAuth2 refresh token |
+
+```bash
+CLIENTIDREF=<secret-uuid> \
+  REFRESHTOKENREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-planday
+```
