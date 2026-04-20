@@ -107,8 +107,8 @@ async function pcFetch(path: string, init?: RequestInit): Promise<unknown> {
       ...init,
       headers: {
         Cookie: sessionCookie,
-        Origin: PC_HOST,
-        Referer: `${PC_HOST}/`,
+        Origin: PC_ORIGIN,
+        Referer: `${PC_ORIGIN}/`,
         ...(init?.headers as Record<string, string> | undefined),
       },
     });
