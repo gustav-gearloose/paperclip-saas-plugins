@@ -1205,3 +1205,22 @@ CONSUMERTOKENREF=<secret-uuid> \
   EMPLOYEETOKENREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-tripletex
 ```
+
+## 62. Recruitee
+
+**Where to get credentials:**
+1. Log in to Recruitee → Settings → Apps and plugins → Personal API tokens
+2. Create a new token — copy it immediately (shown only once)
+3. Your **Company ID** is visible in your account URL: `https://app.recruitee.com/o/<companyId>/...`
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `APITOKENREF` | UUID of the Paperclip secret holding the Recruitee Personal API Token |
+| `PLUGIN_CONFIG_companyId` | Recruitee company ID (plain text, not a secret) |
+
+```bash
+APITOKENREF=<secret-uuid> \
+  PLUGIN_CONFIG_companyId=<your-company-id> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-recruitee
+```

@@ -1,0 +1,8 @@
+{
+  "configJson": {
+    "companyId": ""
+  },
+  "secretRefs": {
+    "apiTokenRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}

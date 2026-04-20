@@ -136,7 +136,8 @@ plugin_dir() {
     59) echo "packages/plugin-clockify" ;;
     60) echo "packages/plugin-hibob" ;;
     61) echo "packages/plugin-tripletex" ;;
-    62) echo "__custom__" ;;
+    62) echo "packages/plugin-recruitee" ;;
+    63) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -204,7 +205,8 @@ plugin_env_vars() {
     59) printf 'APIKEYREF' ;;
     60) printf 'SERVICEUSERIDREF\nTOKENREF' ;;
     61) printf 'CONSUMERTOKENREF\nEMPLOYEETOKENREF' ;;
-    62) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    62) printf 'APITOKENREF\nPLUGIN_CONFIG_companyId' ;;
+    63) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -275,14 +277,15 @@ echo "   58) Pleo (expense management — expenses, cards, users, teams, tags, a
 echo "   59) Clockify (time tracking — workspaces, projects, clients, users, tags, time entries, reports)"
 echo "   60) HiBob (HR — employees, time-off, departments, tasks, who's out, documents)"
 echo "   61) Tripletex (Norwegian ERP — invoices, customers, suppliers, projects, timesheet, ledger)"
-echo "   62) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   62) Recruitee (ATS — job offers, candidates, pipelines, team members, tags)"
+echo "   63) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to add? (comma-separated numbers, e.g. 1,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61)  # 62 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62)  # 63 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi

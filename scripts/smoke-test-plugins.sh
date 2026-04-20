@@ -188,6 +188,7 @@ SMOKE_TOOLS=(
   "clockify|clockify_list_workspaces|{}"
   "hibob|hibob_list_employees|{}"
   "tripletex|tripletex_list_customers|{}"
+  "recruitee|recruitee_list_offers|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
