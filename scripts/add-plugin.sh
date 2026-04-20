@@ -89,7 +89,8 @@ plugin_dir() {
     12) echo "packages/plugin-fortnox" ;;
     13) echo "packages/plugin-pipedrive" ;;
     14) echo "packages/plugin-intercom" ;;
-    15) echo "__custom__" ;;
+    15) echo "packages/plugin-jira" ;;
+    16) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -110,7 +111,8 @@ plugin_env_vars() {
     12) printf 'ACCESSTOKENREF\nREFRESHTOKENREF\nCLIENTIDREF\nCLIENTSECRETREF' ;;
     13) printf 'APITOKENREF' ;;
     14) printf 'ACCESSTOKENREF' ;;
-    15) printf '' ;;
+    15) printf 'APITOKENREF\nPLUGIN_CONFIG_email\nPLUGIN_CONFIG_domain' ;;
+    16) printf '' ;;
     *)  printf '' ;;
   esac
 }
@@ -134,7 +136,8 @@ echo "   11) Microsoft Teams"
 echo "   12) Fortnox (accounting — SE)"
 echo "   13) Pipedrive (CRM)"
 echo "   14) Intercom (customer messaging)"
-echo "   15) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   15) Jira (issue tracking)"
+echo "   16) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to add? (comma-separated numbers, e.g. 1,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION

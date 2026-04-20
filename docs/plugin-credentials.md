@@ -291,3 +291,23 @@ PC_PASSWORD=<pw> \
   ACCESSTOKENREF=<intercom-access-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-intercom
 ```
+
+---
+
+## Jira
+
+**Env vars:** `APITOKENREF`, `PLUGIN_CONFIG_email`, `PLUGIN_CONFIG_domain`
+
+**Where to find them:**
+1. Log in to Atlassian → go to **account.atlassian.com/manage-profile/security/api-tokens**
+2. Click **Create API token** → give it a name → copy the token
+3. Your **email** is the Atlassian account email
+4. Your **domain** is the subdomain from your Jira URL: `mycompany.atlassian.net` → `mycompany`
+
+```bash
+PC_PASSWORD=<pw> \
+  APITOKENREF=<jira-api-token> \
+  PLUGIN_CONFIG_email=<your-atlassian-email> \
+  PLUGIN_CONFIG_domain=<your-atlassian-subdomain> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-jira
+```
