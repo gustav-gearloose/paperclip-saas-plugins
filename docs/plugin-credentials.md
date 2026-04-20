@@ -407,3 +407,20 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_shopDomain=yourstore.myshopify.com \
   ./scripts/provision-plugin.sh <slug> packages/plugin-shopify
 ```
+
+---
+
+## monday.com
+
+**Env vars:** `APITOKENREF`
+
+**Where to find it:**
+1. Log in to [monday.com](https://monday.com) → click your avatar (top-right) → **Developers**
+2. Go to **My Access Tokens** → click **Show** to reveal your personal API token
+3. Copy the token (starts with `eyJ...`)
+
+```bash
+PC_PASSWORD=<pw> \
+  APITOKENREF=<monday-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-monday
+```
