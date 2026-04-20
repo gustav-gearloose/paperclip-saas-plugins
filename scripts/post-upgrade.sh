@@ -110,12 +110,15 @@ else
     fi
 
     info "Redeploying $plugin_slug..."
-    if PC_PASSWORD="$PC_PASSWORD" PC_CUSTOMER_CONFIG="$config_file" \
-        "$SCRIPT_DIR/deploy-plugin.sh" "$plugin_dir" 2>&1 | grep -E '(✅|❌|→|Error|error)'; then
+    deploy_out=$(PC_PASSWORD="$PC_PASSWORD" PC_CUSTOMER_CONFIG="$config_file" \
+      "$SCRIPT_DIR/deploy-plugin.sh" "$plugin_dir" 2>&1) && deploy_ok=1 || deploy_ok=0
+    echo "$deploy_out" | grep -E '(✅|❌|→|Error|error)' || true
+    if [[ "$deploy_ok" -eq 1 ]]; then
       ok "$plugin_slug redeployed"
       DEPLOY_PASS=$((DEPLOY_PASS + 1))
     else
       warn "$plugin_slug deployment failed — check output above"
+      echo "$deploy_out" | tail -5
       DEPLOY_FAIL=$((DEPLOY_FAIL + 1))
     fi
   done
