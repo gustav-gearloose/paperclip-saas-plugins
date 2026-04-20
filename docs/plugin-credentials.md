@@ -512,3 +512,23 @@ PC_PASSWORD=<pw> \
   APITOKENREF=<todoist-api-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-todoist
 ```
+
+## Airtable (database / spreadsheet hybrid)
+
+**Env vars:** `APIKEYREF`
+
+**Where to find them:**
+1. Log in to Airtable → click your avatar (top-right) → **Account**
+2. Go to **Developer hub → Personal access tokens**
+3. Click **Create new token**, give it a name, and grant these scopes:
+   - `data.records:read`, `data.records:write`
+   - `schema.bases:read`
+4. Select which bases it can access (or choose **All current and future bases**)
+5. Copy the generated token — it starts with `pat`
+6. Store it as a Paperclip secret
+
+```bash
+PC_PASSWORD=<pw> \
+  APIKEYREF=<airtable-personal-access-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-airtable
+```
