@@ -132,14 +132,14 @@ ok "package.json"
 
 # Build secretRefs block
 SECRET_REFS_JSON=""
-for ref in "${SECRETS[@]}"; do
+for ref in "${SECRETS[@]+"${SECRETS[@]}"}"; do
   SECRET_REFS_JSON+="    \"$ref\": { \"uuid\": \"REPLACE_WITH_SECRET_UUID\" },"$'\n'
 done
 SECRET_REFS_JSON="${SECRET_REFS_JSON%,$'\n'}"  # strip trailing comma+newline
 
 # Build configJson block
 CONFIG_JSON_BLOCK=""
-for key in "${CONFIG_KEYS[@]}"; do
+for key in "${CONFIG_KEYS[@]+"${CONFIG_KEYS[@]}"}"; do
   CONFIG_JSON_BLOCK+="    \"$key\": \"\","$'\n'
 done
 CONFIG_JSON_BLOCK="${CONFIG_JSON_BLOCK%,$'\n'}"
@@ -160,8 +160,7 @@ ok "deploy-config.json"
 
 # Build instanceConfigSchema properties
 SCHEMA_PROPS=""
-for i in "${!SECRETS[@]}"; do
-  ref="${SECRETS[$i]}"
+for ref in "${SECRETS[@]+"${SECRETS[@]}"}"; do
   SCHEMA_PROPS+="      $ref: {
         type: \"string\",
         format: \"secret-ref\",
@@ -170,9 +169,10 @@ for i in "${!SECRETS[@]}"; do
         default: \"\",
       },"$'\n'
 done
-for i in "${!CONFIG_KEYS[@]}"; do
-  key="${CONFIG_KEYS[$i]}"
-  desc="${CONFIG_DESCS[$i]:-}"
+_ci=0
+for key in "${CONFIG_KEYS[@]+"${CONFIG_KEYS[@]}"}"; do
+  desc="${CONFIG_DESCS[$_ci]:-}"
+  _ci=$((_ci+1))
   SCHEMA_PROPS+="      $key: {
         type: \"string\",
         title: \"$desc\",
@@ -183,19 +183,19 @@ done
 
 # Build required array
 REQUIRED_FIELDS=""
-for ref in "${SECRETS[@]}"; do
+for ref in "${SECRETS[@]+"${SECRETS[@]}"}"; do
   REQUIRED_FIELDS+="\"$ref\", "
 done
-for key in "${CONFIG_KEYS[@]}"; do
+for key in "${CONFIG_KEYS[@]+"${CONFIG_KEYS[@]}"}"; do
   REQUIRED_FIELDS+="\"$key\", "
 done
 REQUIRED_FIELDS="${REQUIRED_FIELDS%, }"
 
 # Build tools array
 TOOLS_BLOCK=""
-for tool in "${TOOLS[@]}"; do
+for tool in "${TOOLS[@]+"${TOOLS[@]}"}"; do
   tool_display="$(echo "$tool" | sed 's/_/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1))substr($i,2)}1')"
-  TOOLS_BLOCK+="  {
+  TOOLS_BLOCK+="    {
       name: \"${PLUGIN_NAME//-/_}_$tool\",
       displayName: \"$tool_display\",
       description: \"TODO: describe what $tool does.\",
@@ -246,16 +246,16 @@ ok "src/manifest.ts"
 
 # Build config interface fields
 CONFIG_IFACE=""
-for ref in "${SECRETS[@]}"; do
+for ref in "${SECRETS[@]+"${SECRETS[@]}"}"; do
   CONFIG_IFACE+="  $ref?: string;"$'\n'
 done
-for key in "${CONFIG_KEYS[@]}"; do
+for key in "${CONFIG_KEYS[@]+"${CONFIG_KEYS[@]}"}"; do
   CONFIG_IFACE+="  $key?: string;"$'\n'
 done
 
 # Build secret resolution block
 SECRET_RESOLVE=""
-for ref in "${SECRETS[@]}"; do
+for ref in "${SECRETS[@]+"${SECRETS[@]}"}"; do
   SECRET_RESOLVE+="
     if (!config.$ref) {
       ctx.logger.error(\"$PLUGIN_NAME plugin: $ref is required\");
@@ -272,7 +272,7 @@ done
 
 # Build config validation block
 CONFIG_VALIDATE=""
-for key in "${CONFIG_KEYS[@]}"; do
+for key in "${CONFIG_KEYS[@]+"${CONFIG_KEYS[@]}"}"; do
   CONFIG_VALIDATE+="
     if (!config.$key) {
       ctx.logger.error(\"$PLUGIN_NAME plugin: $key is required\");
@@ -282,7 +282,7 @@ done
 
 # Build tool handlers
 TOOL_HANDLERS=""
-for tool in "${TOOLS[@]}"; do
+for tool in "${TOOLS[@]+"${TOOLS[@]}"}"; do
   tool_display="$(echo "$tool" | sed 's/_/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1))substr($i,2)}1')"
   tool_name="${PLUGIN_NAME//-/_}_$tool"
   TOOL_HANDLERS+="
@@ -308,7 +308,8 @@ import { definePlugin, runWorker } from "@paperclipai/plugin-sdk";
 import type { ToolResult } from "@paperclipai/plugin-sdk";
 
 interface ${DISPLAY_NAME// /}PluginConfig {
-$(printf '%s' "$CONFIG_IFACE")}
+$(printf '%s' "$CONFIG_IFACE")
+}
 
 function errResult(err: unknown): ToolResult {
   return { error: err instanceof Error ? err.message : String(err) };
@@ -349,11 +350,11 @@ echo ""
 echo "  4. Provision for a customer:"
 if [[ ${#SECRETS[@]} -gt 0 ]]; then
   echo "     PC_PASSWORD=<pw> \\"
-  for ref in "${SECRETS[@]}"; do
+  for ref in "${SECRETS[@]+"${SECRETS[@]}"}"; do
     var_name="$(echo "$ref" | tr '[:lower:]' '[:upper:]')"
     echo "       ${var_name}=<value> \\"
   done
-  for key in "${CONFIG_KEYS[@]}"; do
+  for key in "${CONFIG_KEYS[@]+"${CONFIG_KEYS[@]}"}"; do
     echo "       PLUGIN_CONFIG_${key}=<value> \\"
   done
   echo "       ./scripts/provision-plugin.sh <customer-slug> packages/plugin-$PLUGIN_NAME"
