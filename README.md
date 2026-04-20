@@ -205,6 +205,7 @@ scripts/
   patch-paperclip-container.sh # Reapply compiled JS bug patches
   new-plugin.sh             # Scaffold a new plugin skeleton from CLI flags
   validate-plugins.sh       # Local structural validation before deploy
+  run-tool.sh               # Execute a single plugin tool locally (no Paperclip instance needed)
 
 docs/
   plugin-credentials.md   # What credentials each plugin needs and where to find them
@@ -342,6 +343,39 @@ Run structural checks on all plugins (TypeScript, manifest, tool parity, no hard
 ./scripts/validate-plugins.sh          # all plugins
 ./scripts/validate-plugins.sh packages/plugin-dinero  # one plugin
 ```
+
+---
+
+## Local tool execution (no Paperclip instance needed)
+
+Test a plugin tool locally against the real external API using the SDK test harness.
+No VPS or Paperclip container required — only the plugin's built `dist/` and real credentials.
+
+```bash
+# Pattern: set PLUGIN_CONFIG_<field>=<value> and PLUGIN_SECRET_<secretRefField>=<actual-secret>
+# The secretRef field name in PLUGIN_CONFIG_* must match what the worker reads from config.
+
+PLUGIN_CONFIG_dineroOrgId=123456 \
+PLUGIN_CONFIG_dineroClientIdRef=dineroClientIdRef \
+PLUGIN_CONFIG_dineroClientSecretRef=dineroClientSecretRef \
+PLUGIN_CONFIG_dineroApiKeyRef=dineroApiKeyRef \
+PLUGIN_SECRET_dineroClientIdRef=<your-dinero-client-id> \
+PLUGIN_SECRET_dineroClientSecretRef=<your-dinero-client-secret> \
+PLUGIN_SECRET_dineroApiKeyRef=<your-dinero-api-key> \
+./scripts/run-tool.sh packages/plugin-dinero dinero_list_contacts '{}'
+
+# HubSpot example (single bearer token):
+PLUGIN_CONFIG_accessTokenRef=accessTokenRef \
+PLUGIN_SECRET_accessTokenRef=pat-eu1-xxxx \
+./scripts/run-tool.sh packages/plugin-hubspot hubspot_search_contacts '{"limit":3}'
+```
+
+The plugin must be built first: `cd packages/plugin-<name> && npm run build`
+
+**How it works:** The SDK exports `createTestHarness` (`dist/testing.js`) which instantiates
+an in-memory host that enforces declared capabilities. `PLUGIN_SECRET_<key>` values are
+returned when the worker calls `ctx.secrets.resolve(config.<key>)`. Real HTTP calls are made
+via `ctx.http.fetch` — so you see real API responses and errors.
 
 ---
 
