@@ -32,6 +32,12 @@ SSH_HOST="${1:?Usage: $0 <ssh-host> <domain> [anthropic-api-key]}"
 DOMAIN="${2:?Usage: $0 <ssh-host> <domain> [anthropic-api-key]}"
 ANTHROPIC_API_KEY="${3:-}"
 
+# If domain is an IP address or "local", skip Caddy and use HTTP directly
+IS_LOCAL=false
+if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$DOMAIN" == "local" ]]; then
+  IS_LOCAL=true
+fi
+
 PAPERCLIP_REPO="https://github.com/gustav-gearloose/paperclip.git"
 PAPERCLIP_DIR="/opt/paperclip"
 PAPERCLIP_DATA="/paperclip-data"
@@ -191,11 +197,16 @@ if [[ "$SECRETS_EXIST" == "yes" ]]; then
   warn "$SECRETS_FILE already exists — not overwriting (secrets preserved)"
 else
   BETTER_AUTH_SECRET=$(openssl rand -hex 32)
+  if [[ "$IS_LOCAL" == "true" ]]; then
+    PUBLIC_URL="http://$DOMAIN:$PAPERCLIP_PORT"
+  else
+    PUBLIC_URL="https://$DOMAIN"
+  fi
   r "cat > $SECRETS_FILE" << SECRETSEOF
 BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
 DATABASE_URL=$DATABASE_URL
 ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-PAPERCLIP_PUBLIC_URL=https://$DOMAIN
+PAPERCLIP_PUBLIC_URL=$PUBLIC_URL
 SECRETSEOF
   r "chmod 600 $SECRETS_FILE"
   ok "Secrets written to $SECRETS_FILE"
@@ -243,14 +254,18 @@ ok "paperclip.service installed and enabled"
 
 section "Step 8: Configure Caddy for https://$DOMAIN"
 
-r "sudo tee /etc/caddy/Caddyfile > /dev/null" << CADDYEOF
+if [[ "$IS_LOCAL" == "true" ]]; then
+  warn "Local/IP domain — skipping Caddy (Paperclip accessible at http://$DOMAIN:$PAPERCLIP_PORT)"
+  r "sudo systemctl disable caddy --now 2>/dev/null || true"
+else
+  r "sudo tee /etc/caddy/Caddyfile > /dev/null" << CADDYEOF
 $DOMAIN {
     reverse_proxy 127.0.0.1:$PAPERCLIP_PORT
 }
 CADDYEOF
-
-r "sudo systemctl enable caddy"
-ok "Caddyfile written for $DOMAIN"
+  r "sudo systemctl enable caddy"
+  ok "Caddyfile written for $DOMAIN"
+fi
 
 # ── step 9: set up backups ────────────────────────────────────────────────────
 
@@ -288,8 +303,10 @@ r "sudo systemctl start postgresql"
 info "Starting Paperclip..."
 r "sudo systemctl start paperclip"
 
-info "Reloading Caddy..."
-r "sudo systemctl reload caddy 2>/dev/null || sudo systemctl start caddy"
+if [[ "$IS_LOCAL" != "true" ]]; then
+  info "Reloading Caddy..."
+  r "sudo systemctl reload caddy 2>/dev/null || sudo systemctl start caddy"
+fi
 
 ok "All services started"
 
@@ -323,7 +340,11 @@ section "Done"
 
 echo ""
 echo -e "  ${GREEN}Paperclip is running at:${NC}"
-echo "    https://$DOMAIN  (Caddy HTTPS — cert auto-issued)"
+if [[ "$IS_LOCAL" == "true" ]]; then
+  echo "    http://$DOMAIN:$PAPERCLIP_PORT  (direct, no TLS)"
+else
+  echo "    https://$DOMAIN  (Caddy HTTPS — cert auto-issued)"
+fi
 echo "    http://localhost:$PAPERCLIP_PORT  (internal)"
 echo ""
 echo -e "  ${CYAN}Service management:${NC}"
@@ -332,7 +353,11 @@ echo "    Logs:    ssh $SSH_HOST 'journalctl -u paperclip -f'"
 echo "    Upgrade: ssh $SSH_HOST 'cd $PAPERCLIP_DIR && git pull && pnpm build && sudo systemctl restart paperclip'"
 echo ""
 echo -e "  ${CYAN}Next steps:${NC}"
-echo "  1. Open https://$DOMAIN in your browser to complete Paperclip onboarding"
+if [[ "$IS_LOCAL" == "true" ]]; then
+  echo "  1. Open http://$DOMAIN:$PAPERCLIP_PORT in your browser to complete Paperclip onboarding"
+else
+  echo "  1. Open https://$DOMAIN in your browser to complete Paperclip onboarding"
+fi
 echo "     (create your company and first admin user)"
 echo "  2. Add SSH alias to ~/.ssh/config if not already:"
 echo "       Host <customer-slug>"
