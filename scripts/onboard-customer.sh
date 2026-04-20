@@ -318,10 +318,21 @@ if [[ ${#SELECTED_NUMS[@]} -gt 0 ]]; then
 
     # Collect credentials interactively; export them so provision-plugin.sh sees them
     for vn in "${env_var_names[@]}"; do
-      ask "    $vn:"
-      if [[ "$vn" == *PASSWORD* || "$vn" == *SECRET* || "$vn" == *TOKEN* || "$vn" == *KEY* ]]; then
+      if [[ "$vn" == "SERVICEACCOUNTJSONREF" ]]; then
+        # Multi-line JSON — read from file path to avoid pasting issues
+        ask "    $vn — path to service-account-key.json file:"
+        read -r json_path
+        json_path="${json_path/#\~/$HOME}"   # expand leading ~
+        if [[ ! -f "$json_path" ]]; then
+          warn "File not found: $json_path — skipping $plugin_name"
+          continue 2
+        fi
+        vv="$(cat "$json_path")"
+      elif [[ "$vn" == *PASSWORD* || "$vn" == *SECRET* || "$vn" == *TOKEN* || "$vn" == *KEY* ]]; then
+        ask "    $vn:"
         read -rs vv; echo ""
       else
+        ask "    $vn:"
         read -r vv
       fi
       export "$vn=$vv"
