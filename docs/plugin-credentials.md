@@ -641,3 +641,18 @@ PC_PASSWORD=<pw> \
   APIKEYREF=<brevo-api-key> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-brevo
 ```
+
+## SendGrid (email)
+
+**Env vars:** `APIKEYREF`
+
+**Where to find them:**
+1. Log in to SendGrid → Settings → **API Keys**
+2. Create a key with at least **Mail Send** + **Marketing** permissions
+3. Store it as a Paperclip secret
+
+```bash
+PC_PASSWORD=<pw> \
+  APIKEYREF=<sendgrid-api-key> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-sendgrid
+```
