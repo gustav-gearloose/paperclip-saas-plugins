@@ -87,6 +87,16 @@ Exit 0 = all good. Exit 1 = check the output for which plugin/tool failed.
 
 Shows: SSH reachable, container running, Paperclip health, installed plugins + statuses, agent MCP wiring, tool count. No plugin tool execution — safe to run any time.
 
+### Add a plugin to an existing customer
+
+Interactive wizard — same plugin menu as onboarding, but loads the existing customer config:
+
+```bash
+PC_PASSWORD=<pw> ./scripts/add-plugin.sh <customer-slug>
+```
+
+Shows already-provisioned plugins, lets you pick one or more to add, collects credentials interactively, and provisions them. The MCP proxy auto-refreshes tools on the next agent call — no restart needed.
+
 ### Redeploy a plugin after a code update
 
 ```bash
@@ -139,6 +149,7 @@ packages/
 scripts/
   setup-vps.sh              # Provision a fresh VPS
   onboard-customer.sh       # Interactive new-customer wizard
+  add-plugin.sh             # Add a plugin to an already-onboarded customer
   status.sh                 # Quick health dashboard (no tool execution)
   provision-plugin.sh       # First-time plugin deploy (creates secrets)
   deploy-for-customer.sh    # Redeploy a plugin to a customer
