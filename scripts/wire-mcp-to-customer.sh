@@ -2,16 +2,13 @@
 # wire-mcp-to-customer.sh — install the MCP plugin proxy on a customer's Paperclip instance
 # and patch their default agent to use it, so Claude agents can call plugin tools.
 #
+# Paperclip runs bare-metal (systemd). The proxy is installed directly on the host filesystem.
+#
 # Usage:
 #   PC_PASSWORD=<pw> ./scripts/wire-mcp-to-customer.sh <customer-slug> [agent-id]
 #
-# If agent-id is omitted, patches the first agent found on the instance.
+# If agent-id is omitted, patches all agents found on the instance.
 # Reads instance config from customers/<customer-slug>.env.
-#
-# Prerequisites:
-#   - Paperclip instance is running and accessible via SSH_HOST
-#   - Plugin proxy built at packages/mcp-plugin-proxy/
-#   - PC_PASSWORD set in env (or customers/<customer-slug>.secrets)
 
 set -euo pipefail
 
@@ -27,26 +24,23 @@ SECRETS_FILE="$REPO_ROOT/customers/$CUSTOMER.secrets"
 [[ -f "$ENV_FILE" ]] || { echo "❌ No customer config at $ENV_FILE" >&2; exit 1; }
 
 set -a
-# shellcheck source=/dev/null
 source "$ENV_FILE"
 [[ -f "$SECRETS_FILE" ]] && source "$SECRETS_FILE"
 set +a
 
 [[ -n "${PC_PASSWORD:-}" ]] || { echo "❌ PC_PASSWORD is not set" >&2; exit 1; }
 
-CONTAINER="${CONTAINER:-paperclipai-docker-server-1}"
 SSH_HOST="${SSH_HOST:?SSH_HOST not set in $ENV_FILE}"
-PC_HOST="${PC_HOST:?PC_HOST not set in $ENV_FILE}"        # external public URL, used by this script
-PC_HOST_INTERNAL="http://localhost:3100"                   # used by proxy inside container
-# PC_ORIGIN is what the proxy sends as the HTTP Origin header.
-# When Paperclip sits behind Caddy (HTTPS), its CSRF check validates Origin against
-# PAPERCLIP_PUBLIC_URL. The proxy connects via localhost but must claim the public URL.
+PC_HOST="${PC_HOST:?PC_HOST not set in $ENV_FILE}"
+PC_HOST_INTERNAL="http://localhost:3100"
 PC_ORIGIN="${PC_ORIGIN:-$PC_HOST}"
 PC_EMAIL="${PC_EMAIL:?PC_EMAIL not set in $ENV_FILE}"
 PC_COMPANY_ID="${PC_COMPANY_ID:?PC_COMPANY_ID not set in $ENV_FILE}"
-DOCKER="DOCKER_HOST=unix:///var/run/docker.sock docker"
-PROXY_PATH="/paperclip/mcp-proxy"
-MCP_CONFIG_PATH="/paperclip/mcp-proxy-config.json"
+PAPERCLIP_DATA="${PAPERCLIP_DATA:-/paperclip-data}"
+PROXY_PATH="$PAPERCLIP_DATA/mcp-proxy"
+MCP_CONFIG_PATH="$PAPERCLIP_DATA/mcp-proxy-config.json"
+
+CURRENT_USER=$(ssh "$SSH_HOST" "whoami")
 
 info() { echo "→ $*"; }
 die()  { echo "❌ $*" >&2; exit 1; }
@@ -63,21 +57,17 @@ build_out=$(npm run build 2>&1) || { echo "$build_out"; die "npm build failed fo
 echo "$build_out" | tail -2
 cd "$REPO_ROOT"
 
-# ── step 2: copy proxy into container ─────────────────────────────────────────
+# ── step 2: copy proxy to server ──────────────────────────────────────────────
 
-info "Copying proxy into container at $PROXY_PATH..."
-ssh "$SSH_HOST" "$DOCKER exec $CONTAINER mkdir -p $PROXY_PATH"
-scp -q "$PROXY_SRC/dist/index.js" "$SSH_HOST:~/mcp-proxy-index.js"
-scp -q "$PROXY_SRC/package.json" "$SSH_HOST:~/mcp-proxy-package.json"
-ssh "$SSH_HOST" "$DOCKER cp ~/mcp-proxy-index.js $CONTAINER:$PROXY_PATH/index.js && \
-                  $DOCKER cp ~/mcp-proxy-package.json $CONTAINER:$PROXY_PATH/package.json && \
-                  rm ~/mcp-proxy-index.js ~/mcp-proxy-package.json"
-ssh "$SSH_HOST" "$DOCKER exec $CONTAINER bash -c 'set -e; cd $PROXY_PATH && npm install --ignore-scripts'" \
-  || die "npm install inside container failed for mcp-proxy"
+info "Installing proxy at $SSH_HOST:$PROXY_PATH..."
+ssh "$SSH_HOST" "mkdir -p $PROXY_PATH"
+scp -q "$PROXY_SRC/dist/index.js" "$SSH_HOST:$PROXY_PATH/index.js"
+scp -q "$PROXY_SRC/package.json" "$SSH_HOST:$PROXY_PATH/package.json"
+ssh "$SSH_HOST" "cd $PROXY_PATH && npm install --ignore-scripts" \
+  || die "npm install failed for mcp-proxy"
 info "Proxy installed at $PROXY_PATH"
 
-# ── step 3: authenticate and resolve agent ID ─────────────────────────────────
-# Do this before writing MCP config so we can include PC_AGENT_ID in the env block.
+# ── step 3: authenticate and resolve agent IDs ───────────────────────────────
 
 info "Authenticating with Paperclip at $PC_HOST..."
 _AUTH_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'email':sys.argv[1],'password':sys.argv[2]}).encode()).decode())" "$PC_EMAIL" "$PC_PASSWORD")
@@ -102,16 +92,15 @@ else:
     for a in agents:
         print(a['id'])
 ")
-  [[ "${ALL_AGENT_IDS[0]:-}" == "NO_AGENTS" ]] && die "No agents found on this instance. Create one in the Paperclip UI first."
+  [[ "${ALL_AGENT_IDS[0]:-}" == "NO_AGENTS" ]] && die "No agents found. Create one in the Paperclip UI first."
   info "Found ${#ALL_AGENT_IDS[@]} agents to patch"
 else
   ALL_AGENT_IDS=("$AGENT_ID")
 fi
 
-# ── step 4: write MCP config to /paperclip volume ────────────────────────────
+# ── step 4: write MCP config file ────────────────────────────────────────────
 
-info "Writing MCP config to $MCP_CONFIG_PATH..."
-# Build JSON with Python to safely escape all values (avoids breakage if password has " or \)
+info "Writing MCP config to $SSH_HOST:$MCP_CONFIG_PATH..."
 MCP_JSON=$(python3 -c "
 import json, sys
 cfg = {
@@ -134,15 +123,15 @@ cfg = {
 }
 print(json.dumps(cfg, indent=2))
 " "$PROXY_PATH" "$PC_HOST_INTERNAL" "$PC_EMAIL" "$PC_PASSWORD" "$PC_COMPANY_ID" "${ALL_AGENT_IDS[0]}" "$PC_ORIGIN")
-printf '%s' "$MCP_JSON" | ssh "$SSH_HOST" "$DOCKER exec -i $CONTAINER tee $MCP_CONFIG_PATH" > /dev/null
+
+printf '%s' "$MCP_JSON" | ssh "$SSH_HOST" "cat > $MCP_CONFIG_PATH"
+ssh "$SSH_HOST" "chmod 600 $MCP_CONFIG_PATH"
 info "Written: $MCP_CONFIG_PATH"
 
 # ── step 5: verify proxy starts ───────────────────────────────────────────────
 
-info "Verifying proxy starts inside container (6s test)..."
-# base64-encode password to avoid any shell quoting issues with special chars
+info "Verifying proxy starts (6s test)..."
 _PW_B64=$(printf '%s' "$PC_PASSWORD" | base64)
-# Write a one-shot runner into the container so we never interpolate the password into a shell string
 proxy_out=$(ssh "$SSH_HOST" "
   RUNNER=\$(mktemp /tmp/pc_proxy_test_XXXXXX.sh)
   printf '%s\n' '#!/bin/sh' \
@@ -151,13 +140,13 @@ proxy_out=$(ssh "$SSH_HOST" "
     'export PC_ORIGIN=$PC_ORIGIN' \
     'export PC_EMAIL=$PC_EMAIL' \
     'export PC_COMPANY_ID=$PC_COMPANY_ID' \
-    'export PC_AGENT_ID=$AGENT_ID' \
+    'export PC_AGENT_ID=${ALL_AGENT_IDS[0]}' \
     'exec timeout 6 node $PROXY_PATH/index.js' > \$RUNNER
-  $DOCKER cp \$RUNNER $CONTAINER:\$RUNNER
-  $DOCKER exec $CONTAINER sh \$RUNNER 2>&1 || true
-  $DOCKER exec $CONTAINER rm -f \$RUNNER
+  chmod +x \$RUNNER
+  sh \$RUNNER 2>&1 || true
   rm -f \$RUNNER
 " 2>&1 || true)
+
 if echo "$proxy_out" | grep -qi "Missing required env\|Cannot find module\|SyntaxError\|Error:"; then
   echo "$proxy_out"
   die "Proxy failed to start — check output above"
@@ -165,9 +154,8 @@ elif echo "$proxy_out" | grep -qi "Loaded.*plugin tools\|plugin proxy running"; 
   echo "  ✅ Proxy started and loaded tools:"
   echo "$proxy_out" | grep -i "Loaded\|plugin proxy running\|WARNING" | sed 's/^/     /'
 elif echo "$proxy_out" | grep -qi "WARNING.*0 tools\|returned 0 tools"; then
-  echo "  ⚠️  Proxy started but loaded 0 tools — container patches may not be applied"
+  echo "  ⚠️  Proxy started but loaded 0 tools — plugins may not be provisioned yet"
   echo "$proxy_out" | tail -6 | sed 's/^/     /'
-  info "Run: ./scripts/patch-paperclip-container.sh $CUSTOMER"
 else
   echo "  proxy output: ${proxy_out:-<no output — likely started OK, timeout killed it>}"
 fi
@@ -201,4 +189,4 @@ echo "   Instance: $PC_HOST"
 echo "   Config:   $MCP_CONFIG_PATH"
 echo ""
 echo "   Watch agent use tools:"
-echo "   ssh $SSH_HOST \"DOCKER_HOST=unix:///var/run/docker.sock docker logs $CONTAINER -f 2>&1 | grep -i 'mcp\\\\|tool\\\\|plugin'\""
+echo "   ssh $SSH_HOST 'journalctl -u paperclip -f | grep -i mcp'"

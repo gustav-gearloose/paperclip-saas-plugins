@@ -49,7 +49,6 @@ PC_ORIGIN="${PC_ORIGIN:-$PC_HOST}"
 PC_EMAIL="${PC_EMAIL:?PC_EMAIL not set}"
 PC_COMPANY_ID="${PC_COMPANY_ID:?PC_COMPANY_ID not set}"
 SSH_HOST="${SSH_HOST:?SSH_HOST not set}"
-CONTAINER="${CONTAINER:-paperclipai-docker-server-1}"
 
 echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
@@ -139,7 +138,8 @@ plugin_dir() {
     62) echo "packages/plugin-recruitee" ;;
     63) echo "packages/plugin-teamtailor" ;;
     64) echo "packages/plugin-workable" ;;
-    65) echo "__custom__" ;;
+    65) echo "packages/plugin-greenhouse" ;;
+    66) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -210,7 +210,8 @@ plugin_env_vars() {
     62) printf 'APITOKENREF\nPLUGIN_CONFIG_companyId' ;;
     63) printf 'APIKEYREF' ;;
     64) printf 'ACCESSTOKENREF\nPLUGIN_CONFIG_subdomain' ;;
-    65) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    65) printf 'APIKEYREF\nPLUGIN_CONFIG_onBehalfOfUserId' ;;
+    66) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }

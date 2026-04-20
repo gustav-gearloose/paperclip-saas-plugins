@@ -8,11 +8,11 @@
 #
 # Reads customers/<slug>.env (and .secrets if present).
 # Checks (without executing any plugin tools):
-#   - Container running
+#   - systemd service status (paperclip + postgresql)
 #   - Paperclip /api/health
 #   - Installed plugins and their status
 #   - Agent adapterConfig (MCP proxy wired?)
-#   - /api/plugins/tools count (requires container patches)
+#   - /api/plugins/tools count
 
 set -euo pipefail
 
@@ -47,13 +47,10 @@ check_customer() {
   local PC_EMAIL="${PC_EMAIL:-}"
   local PC_PASSWORD="${PC_PASSWORD:-}"
   local SSH_HOST="${SSH_HOST:-}"
-  local CONTAINER="${CONTAINER:-paperclipai-docker-server-1}"
-  local DOCKER="DOCKER_HOST=unix:///var/run/docker.sock docker"
 
-  echo "  SSH:       $SSH_HOST"
-  echo "  Host:      $PC_HOST"
-  echo "  Origin:    $PC_ORIGIN"
-  echo "  Container: $CONTAINER"
+  echo "  SSH:    $SSH_HOST"
+  echo "  Host:   $PC_HOST"
+  echo "  Origin: $PC_ORIGIN"
   echo ""
 
   # ── SSH reachable? ────────────────────────────────────────────────────────
@@ -64,15 +61,17 @@ check_customer() {
   fi
   ok "SSH reachable"
 
-  # ── Container running? ────────────────────────────────────────────────────
+  # ── systemd services ──────────────────────────────────────────────────────
 
-  CONTAINER_STATUS=$(ssh "$SSH_HOST" "$DOCKER inspect $CONTAINER --format '{{.State.Status}}' 2>/dev/null || echo 'not_found'")
-  if [[ "$CONTAINER_STATUS" == "running" ]]; then
-    ok "Container $CONTAINER: running"
-  else
-    fail "Container $CONTAINER: $CONTAINER_STATUS"
-    return
-  fi
+  for svc in paperclip postgresql; do
+    SVC_STATUS=$(ssh "$SSH_HOST" "systemctl is-active $svc 2>/dev/null || echo inactive")
+    if [[ "$SVC_STATUS" == "active" ]]; then
+      ok "systemd $svc: active"
+    else
+      fail "systemd $svc: $SVC_STATUS"
+      [[ "$svc" == "paperclip" ]] && return
+    fi
+  done
 
   # ── Paperclip health ──────────────────────────────────────────────────────
 
@@ -124,8 +123,8 @@ check_customer() {
   echo "  Plugins: $PLUGIN_COUNT installed, $TOOL_COUNT_API tools visible via /api/plugins/tools"
 
   if [[ "$TOOL_COUNT_API" == "0" ]] || [[ "$TOOL_COUNT_API" == "?" ]]; then
-    warn "0 tools from /api/plugins/tools — container patches may not be applied"
-    info "Fix: ./scripts/patch-paperclip-container.sh $CUSTOMER"
+    warn "0 tools from /api/plugins/tools — plugins may not be provisioned yet"
+    info "Provision with: PC_PASSWORD=<pw> ./scripts/provision-plugin.sh $CUSTOMER packages/plugin-<name>"
   fi
 
   echo "$PLUGINS_JSON" | python3 -c "

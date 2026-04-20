@@ -1,6 +1,6 @@
 # Paperclip Custom Plugin System — Gearloose Field Guide
 
-Status as of 2026-04-20. Validated on NUC instance (Paperclip self-hosted via Docker).
+Status as of 2026-04-20. Validated on NUC instance (Paperclip self-hosted bare-metal, systemd service).
 
 ## What Works End-to-End
 
@@ -103,22 +103,6 @@ export default async function worker(ctx: PluginWorkerContext) {
   });
 }
 ```
-
-## Known Bugs & Patches
-
-### Bug 1: Plugin tools not visible to agents (Paperclip server bug)
-
-**Symptom:** `GET /api/plugins/tools` returns 0 tools despite plugin being healthy.
-
-**Root cause:** `plugin-loader.js` calls `toolDispatcher.registerPluginTools(pluginKey, manifest)` 
-without passing the DB UUID. Workers are keyed by DB UUID; lookup fails.
-
-**Patch** (applied to compiled JS in container — lost on image rebuild):
-- `/app/server/dist/services/plugin-tool-dispatcher.js` line ~210: add `pluginDbId` param
-- `/app/server/dist/services/plugin-loader.js` line ~1085: pass DB UUID as 3rd arg
-
-**Workaround for rebuild:** Re-apply patch via `docker exec` after every image update.
-Track upstream fix: open issue or check Paperclip changelog before each upgrade.
 
 ## Install Procedure (Automated)
 
@@ -373,33 +357,32 @@ Auth uses two tokens: an **App Secret Token** (your developer credential, same f
 
 ## Recurring Maintenance
 
-### After a Paperclip container image rebuild (upgrade)
+### After a Paperclip upgrade
 
-Run the one-command recovery script:
+Paperclip runs bare-metal (systemd). Upgrades are a 3-minute operation:
+
+```bash
+# On the server:
+ssh <ssh-host>
+cd /opt/paperclip
+git pull
+pnpm build
+sudo systemctl restart paperclip
+```
+
+Or use the automation script (also redeploys plugins + smoke tests):
 
 ```bash
 PC_PASSWORD=<pw> ./scripts/post-upgrade.sh <customer-slug>
 ```
 
-This does the full sequence automatically:
-1. Re-applies compiled JS patches (`patch-paperclip-container.sh`)
-2. Restarts the container
-3. Polls until Paperclip is healthy (up to 60s)
-4. Redeploys all plugins that have a `customers/<slug>/plugin-*.json` config
-5. Runs `smoke-test-plugins.sh` to verify tools are callable
+No patches to reapply — the plugin loader fix is committed to the source fork.
 
-If you only need to reapply the patches without a full redeploy:
+### After server restart
 
-```bash
-./scripts/patch-paperclip-container.sh <customer-slug>
-ssh <ssh-host> "DOCKER_HOST=unix:///var/run/docker.sock docker restart <container>"
-```
+Paperclip, PostgreSQL, and Caddy all have `systemctl enable` set — they restart automatically on boot.
 
-### After NUC restart (not a container rebuild)
-
-The container restarts automatically via Docker's restart policy. Patches survive a container restart (they're in the container filesystem). Only a *container image rebuild* (Paperclip upgrade) loses the patches.
-
-MCP config at `/paperclip/mcp-proxy-config.json` persists (Docker volume) — no action needed.
+MCP config at `/paperclip-data/mcp-proxy-config.json` persists on the host filesystem — no action needed.
 
 ### Secrets
 
@@ -411,40 +394,37 @@ Stored as Paperclip secrets, referenced by UUID in `customers/<slug>/plugin-*.js
 
 ### "Plugin status=error after install"
 
-Plugin activated but worker crashed on startup. Check container logs:
+Plugin activated but worker crashed on startup. Check logs:
 ```bash
-ssh <ssh-host> "DOCKER_HOST=unix:///var/run/docker.sock docker logs paperclipai-docker-server-1 --tail 50 2>&1 | grep -i 'error\|plugin'"
+ssh <ssh-host> "journalctl -u paperclip --no-pager -n 50 | grep -i 'error\|plugin'"
 ```
 Common causes:
-- Missing npm dependency: run `npm install --ignore-scripts` inside the container plugin dir
-- SDK symlink broken: re-run `ln -sfn /app/packages/plugins/sdk <plugin-path>/node_modules/@paperclipai/plugin-sdk`
+- Missing npm dependency: `ssh <host> "cd /paperclip-plugins/<slug>-v1 && npm install --ignore-scripts"`
+- SDK symlink broken: `ssh <host> "ln -sfn /opt/paperclip/packages/plugins/sdk /paperclip-plugins/<slug>-v1/node_modules/@paperclipai/plugin-sdk"`
 - Secret UUID wrong: check `customers/<slug>/plugin-<name>.json` UUIDs match what's in Paperclip Settings
 
 ### "Tools visible on /api/plugins/tools but execute returns worker not running"
 
-Container patches not applied. Run:
+This was a Paperclip bug (pluginDbId lookup) fixed in the `gearloose/paperclip` fork. If it recurs, check the fork is up to date:
 ```bash
-./scripts/patch-paperclip-container.sh <customer-slug>
-ssh <ssh-host> "DOCKER_HOST=unix:///var/run/docker.sock docker restart paperclipai-docker-server-1"
-PC_PASSWORD=<pw> ./scripts/deploy-for-customer.sh <customer-slug> packages/plugin-<name>
+ssh <ssh-host> "cd /opt/paperclip && git log --oneline -5"
 ```
 
 ### "MCP proxy shows 0 tools"
 
-Either the container patches aren't applied, or no plugins are installed. Check:
+No plugins are provisioned yet, or Paperclip is still starting. Check:
 ```bash
-# From the NUC:
-curl -s http://localhost:3100/api/plugins/tools -b /tmp/pc_deploy_cookies.txt | python3 -c "import sys,json; print(len(json.load(sys.stdin)), 'tools')"
+ssh <ssh-host> "curl -s http://localhost:3100/api/plugins/tools | python3 -c \"import sys,json; print(len(json.load(sys.stdin)), 'tools')\""
 ```
-Fix: apply patches → redeploy plugins → restart proxy (restart the Claude agent session).
+Provision plugins first with `provision-plugin.sh`, then re-run `wire-mcp-to-customer.sh`.
 
 ### "smoke-test-plugins.sh: No plugins found or auth failed"
 
-Either auth failed or PC_HOST isn't reachable. Test manually:
+Either auth failed or PC_HOST isn't reachable:
 ```bash
 ssh <ssh-host> "curl -s http://localhost:3100/api/health"
+ssh <ssh-host> "systemctl status paperclip"
 ```
-If health check fails, Paperclip is down — check `docker logs`.
 
 ### "provision-plugin.sh: secret value for X not provided"
 
@@ -453,10 +433,3 @@ The env var wasn't exported before running the script. The env var name is the s
 ### "deploy-plugin.sh: Install failed (status=error)"
 
 Check `lastError` field in the curl response. Common: manifest syntax error (apiVersion must be number, not string), missing `capabilities` array, bad `entrypoints.worker` path.
-
-### "Container patches lost after upgrade"
-
-After any `docker pull` + `docker compose up`, the compiled JS is replaced. Always run `post-upgrade.sh` immediately after a Paperclip upgrade:
-```bash
-PC_PASSWORD=<pw> ./scripts/post-upgrade.sh <customer-slug>
-```

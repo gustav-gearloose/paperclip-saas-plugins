@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
 # deploy-plugin.sh — build and deploy a custom Paperclip plugin to a self-hosted instance
 #
+# Paperclip runs bare-metal (systemd service). Plugins are installed via scp + API call.
+# No Docker required on the target host.
+#
 # Usage:
 #   ./scripts/deploy-plugin.sh <plugin-package-dir> [options]
 #
-# Required env vars (or pass as options):
+# Required env vars:
 #   PC_HOST        Paperclip host, e.g. http://localhost:3100
 #   PC_EMAIL       Paperclip login email
 #   PC_PASSWORD    Paperclip login password
 #   PC_COMPANY_ID  Paperclip company UUID
-#   SSH_HOST       SSH host for the NUC/server running the container
-#   CONTAINER      Docker container name (default: paperclipai-docker-server-1)
+#   SSH_HOST       SSH host for the server running Paperclip
+#
+# Optional:
+#   PAPERCLIP_DIR  Path to Paperclip source on the server (default: /opt/paperclip)
 #
 # Example:
 #   PC_HOST=http://localhost:3100 \
@@ -27,8 +32,7 @@ set -euo pipefail
 
 PLUGIN_DIR="${1:?Usage: $0 <plugin-package-dir>}"
 PLUGIN_DIR="$(cd "$PLUGIN_DIR" && pwd)"
-CONTAINER="${CONTAINER:-paperclipai-docker-server-1}"
-DOCKER="DOCKER_HOST=unix:///var/run/docker.sock docker"
+PAPERCLIP_DIR="${PAPERCLIP_DIR:-/opt/paperclip}"
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,7 +43,6 @@ require_env() {
   for v in PC_HOST PC_EMAIL PC_PASSWORD PC_COMPANY_ID SSH_HOST; do
     [[ -n "${!v:-}" ]] || die "Missing required env var: $v"
   done
-  # PC_ORIGIN defaults to PC_HOST; override for VPS+Caddy where CSRF validates against public HTTPS URL
   PC_ORIGIN="${PC_ORIGIN:-$PC_HOST}"
 }
 
@@ -78,14 +81,14 @@ VERSION=$(node -e "const p=require('$PLUGIN_DIR/package.json'); console.log(p.ve
 # Slugify for container path: @gearloose/paperclip-plugin-email → paperclip-email
 SLUG=$(echo "$PACKAGE_NAME" | sed 's|.*/||; s|paperclip-plugin-||; s|@[^/]*/||')
 
-# Find the next available version path on the container
+# Find the next available version path on the server
 NEXT_V=1
-while ssh "$SSH_HOST" "$DOCKER exec $CONTAINER test -d /paperclip-${SLUG}-v${NEXT_V}" 2>/dev/null; do
+while ssh "$SSH_HOST" "test -d /paperclip-plugins/${SLUG}-v${NEXT_V}" 2>/dev/null; do
   NEXT_V=$((NEXT_V + 1))
 done
-CONTAINER_PATH="/paperclip-${SLUG}-v${NEXT_V}"
+PLUGIN_PATH="/paperclip-plugins/${SLUG}-v${NEXT_V}"
 
-info "Deploying $PACKAGE_NAME@$VERSION → $CONTAINER_PATH"
+info "Deploying $PACKAGE_NAME@$VERSION → $PLUGIN_PATH"
 
 # ── step 3: prepare flat staging dir ──────────────────────────────────────────
 
@@ -117,28 +120,23 @@ PYEOF
 
 info "Staged files: $(ls $STAGING)"
 
-# ── step 4: copy to NUC and into container ────────────────────────────────────
+# ── step 4: copy plugin files to server ──────────────────────────────────────
 
-REMOTE_STAGING="~/paperclip-deploy-staging/$(basename $PLUGIN_DIR)"
-ssh "$SSH_HOST" "mkdir -p $REMOTE_STAGING"
-scp -q "$STAGING"/* "$SSH_HOST:$REMOTE_STAGING/"
+ssh "$SSH_HOST" "mkdir -p $PLUGIN_PATH"
+scp -q "$STAGING"/* "$SSH_HOST:$PLUGIN_PATH/"
+info "Copied to $SSH_HOST:$PLUGIN_PATH"
 
-info "Copying into container at $CONTAINER_PATH..."
-ssh "$SSH_HOST" "$DOCKER cp $REMOTE_STAGING/ $CONTAINER:$CONTAINER_PATH"
+# ── step 5: npm install and symlink SDK ───────────────────────────────────────
 
-# ── step 5: npm install inside container ──────────────────────────────────────
+info "Installing npm dependencies..."
+ssh "$SSH_HOST" "set -e; cd $PLUGIN_PATH && npm install --ignore-scripts" \
+  || die "npm install failed at $PLUGIN_PATH"
 
-info "Installing npm dependencies inside container..."
-ssh "$SSH_HOST" "$DOCKER exec $CONTAINER bash -c \
-  'set -e; cd $CONTAINER_PATH && npm install --ignore-scripts'" \
-  || die "npm install inside container failed"
-
-# Symlink SDK (must be AFTER npm install)
-ssh "$SSH_HOST" "$DOCKER exec $CONTAINER bash -c \
-  'rm -rf $CONTAINER_PATH/node_modules/@paperclipai && \
-   mkdir -p $CONTAINER_PATH/node_modules/@paperclipai && \
-   ln -sfn /app/packages/plugins/sdk $CONTAINER_PATH/node_modules/@paperclipai/plugin-sdk'"
-info "SDK symlinked."
+# Symlink the plugin SDK from the bare-metal Paperclip install
+ssh "$SSH_HOST" "rm -rf $PLUGIN_PATH/node_modules/@paperclipai && \
+  mkdir -p $PLUGIN_PATH/node_modules/@paperclipai && \
+  ln -sfn $PAPERCLIP_DIR/packages/plugins/sdk $PLUGIN_PATH/node_modules/@paperclipai/plugin-sdk"
+info "SDK symlinked from $PAPERCLIP_DIR/packages/plugins/sdk"
 
 # ── step 6: authenticate with Paperclip ───────────────────────────────────────
 
@@ -217,9 +215,9 @@ fi
 
 # ── step 9: install ───────────────────────────────────────────────────────────
 
-info "Installing plugin from $CONTAINER_PATH..."
+info "Installing plugin from $PLUGIN_PATH..."
 INSTALL_RESULT=$(pc_curl_post "/api/plugins/install" \
-  "-d '{\"packageName\":\"$CONTAINER_PATH\",\"isLocalPath\":true}'")
+  "-d '{\"packageName\":\"$PLUGIN_PATH\",\"isLocalPath\":true}'")
 PLUGIN_ID=$(echo "$INSTALL_RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))")
 STATUS=$(echo "$INSTALL_RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','?'))")
 LAST_ERR=$(echo "$INSTALL_RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('lastError') or d.get('error',''))")
@@ -265,7 +263,7 @@ PYEOF2
   pc_curl "-X DELETE '$PC_HOST/api/plugins/$PLUGIN_ID?purge=false'" > /dev/null
   sleep 1
   RESTART_RESULT=$(pc_curl_post "/api/plugins/install" \
-    "-d '{\"packageName\":\"$CONTAINER_PATH\",\"isLocalPath\":true}'")
+    "-d '{\"packageName\":\"$PLUGIN_PATH\",\"isLocalPath\":true}'")
   PLUGIN_ID=$(echo "$RESTART_RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id', ''))" 2>/dev/null || echo "$PLUGIN_ID")
   echo "$RESTART_RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print('restart status:', d.get('status'), d.get('lastError') or '')"
 fi
@@ -275,5 +273,5 @@ fi
 echo ""
 echo "✅ Plugin deployed successfully"
 echo "   ID:   $PLUGIN_ID"
-echo "   Path: $CONTAINER_PATH"
+echo "   Path: $PLUGIN_PATH"
 echo "   Check health: curl $PC_HOST/api/plugins/$PLUGIN_ID/health"

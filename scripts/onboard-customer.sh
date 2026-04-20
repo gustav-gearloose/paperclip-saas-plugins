@@ -73,14 +73,8 @@ PC_HOST="${PC_HOST_INPUT:-http://localhost:3100}"
 
 ask "Public HTTPS URL (e.g. https://paperclip.acme.com — leave empty for NUC/LAN installs):"
 read -r PC_ORIGIN_INPUT
-# PC_ORIGIN defaults to PC_HOST. For VPS installs behind Caddy, set to the public domain
-# so the MCP proxy sends the correct Origin header matching Paperclip's CSRF check.
+# PC_ORIGIN defaults to PC_HOST. For VPS+Caddy installs, set to the public HTTPS domain.
 PC_ORIGIN="${PC_ORIGIN_INPUT:-$PC_HOST}"
-
-CONTAINER="paperclipai-docker-server-1"
-ask "Docker container name (default: $CONTAINER):"
-read -r CONTAINER_INPUT
-[[ -n "$CONTAINER_INPUT" ]] && CONTAINER="$CONTAINER_INPUT"
 
 # ── validate SSH ──────────────────────────────────────────────────────────────
 
@@ -95,14 +89,16 @@ else
   [[ "$yn" =~ ^[Yy]$ ]] || exit 1
 fi
 
-# ── validate Docker container ─────────────────────────────────────────────────
+# ── validate Paperclip health ─────────────────────────────────────────────────
 
-section "Validating Docker container"
+section "Validating Paperclip health"
 
-if ssh "$SSH_HOST" "DOCKER_HOST=unix:///var/run/docker.sock docker inspect $CONTAINER --format '{{.State.Status}}'" 2>/dev/null | grep -q running; then
-  ok "Container $CONTAINER is running"
+if ssh "$SSH_HOST" "curl -sf '$PC_HOST/api/health' > /dev/null 2>&1"; then
+  HEALTH=$(ssh "$SSH_HOST" "curl -s '$PC_HOST/api/health'" 2>/dev/null || echo "{}")
+  ok "Paperclip is up: $HEALTH"
 else
-  warn "Container $CONTAINER not found or not running on $SSH_HOST."
+  warn "Paperclip not responding at $PC_HOST on $SSH_HOST"
+  info "Check status: ssh $SSH_HOST 'systemctl status paperclip'"
   ask "Continue anyway? (y/N):"
   read -r yn
   [[ "$yn" =~ ^[Yy]$ ]] || exit 1
@@ -189,7 +185,6 @@ PC_EMAIL=$PC_EMAIL
 # PC_PASSWORD — stored in customers/$CUSTOMER.secrets (not committed)
 PC_COMPANY_ID=$PC_COMPANY_ID
 SSH_HOST=$SSH_HOST
-CONTAINER=$CONTAINER
 EOF
 
 printf 'PC_PASSWORD=%s\n' "$PC_PASSWORD" > "$SECRETS_FILE"
@@ -202,52 +197,6 @@ ok "Written: customers/$CUSTOMER.secrets (chmod 600)"
 if ! grep -q "*.secrets" "$REPO_ROOT/.gitignore" 2>/dev/null; then
   echo "*.secrets" >> "$REPO_ROOT/.gitignore"
   ok "Added *.secrets to .gitignore"
-fi
-
-# ── apply container patches ──────────────────────────────────────────────────
-#
-# The pluginDbId bug in Paperclip's compiled JS causes all plugin tool calls to
-# fail with "worker not running". patch-paperclip-container.sh fixes it.
-# Must be applied (and container restarted) before provisioning plugins.
-
-section "Container patches (required for plugin tools)"
-
-ask "Apply Paperclip container patches now? Fixes pluginDbId bug — required for tools to work. [Y/n]:"
-read -r DO_PATCH
-DO_PATCH="${DO_PATCH:-y}"
-
-if [[ "$DO_PATCH" =~ ^[Yy]$ ]]; then
-  info "Running patch-paperclip-container.sh $CUSTOMER..."
-  if "$SCRIPT_DIR/patch-paperclip-container.sh" "$CUSTOMER"; then
-    ok "Container patches applied (or already present / upstream-fixed)"
-    info "Restarting container to pick up patches..."
-    if ssh "$SSH_HOST" "DOCKER_HOST=unix:///var/run/docker.sock docker restart $CONTAINER" 2>/dev/null; then
-      ok "Container restarted"
-      # Wait up to 45 s for Paperclip to come back healthy
-      ATTEMPTS=0
-      while ! ssh "$SSH_HOST" "curl -sf $PC_HOST/api/health > /dev/null 2>&1"; do
-        ATTEMPTS=$((ATTEMPTS + 1))
-        [[ $ATTEMPTS -ge 15 ]] && break
-        echo -n "."; sleep 3
-      done
-      echo ""
-      if [[ $ATTEMPTS -lt 15 ]]; then
-        ok "Paperclip healthy after restart"
-      else
-        warn "Health check timed out — Paperclip may still be starting. Wait a moment and verify."
-      fi
-    else
-      warn "Container restart failed — run manually: ssh $SSH_HOST 'docker restart $CONTAINER'"
-    fi
-  else
-    warn "Patch script exited with error — you can retry later:"
-    warn "  ./scripts/patch-paperclip-container.sh $CUSTOMER"
-    warn "Plugin tools will NOT work until patches are applied and container restarted."
-  fi
-else
-  info "Skipping patches."
-  warn "Plugin tools will NOT work until patches are applied and container restarted."
-  warn "  ./scripts/patch-paperclip-container.sh $CUSTOMER && ssh $SSH_HOST 'docker restart $CONTAINER'"
 fi
 
 # ── plugin lookup (Bash 3 compatible — no declare -A) ─────────────────────────

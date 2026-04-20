@@ -1,34 +1,41 @@
 #!/usr/bin/env bash
-# setup-vps.sh — provision a fresh Ubuntu/Debian VPS with Docker + Paperclip
+# setup-vps.sh — provision a fresh Ubuntu/Debian VPS with bare-metal Paperclip
 #
-# Run from your Mac. Connects to the VPS via SSH, installs Docker, clones the
-# MadeByAdem paperclipai-docker repo, generates secrets, and starts Paperclip.
+# Paperclip runs as a systemd service directly on the host (no Docker).
+# Caddy handles HTTPS termination (auto Let's Encrypt).
+# PostgreSQL runs as a native systemd service — data survives everything.
+#
+# Run from your Mac. Connects to the VPS via SSH.
 # After this script, run onboard-customer.sh to finish customer configuration.
 #
 # Usage:
 #   ./scripts/setup-vps.sh <ssh-host> <domain> [anthropic-api-key]
 #
 # Arguments:
-#   ssh-host           SSH alias or user@ip for the target VPS (must have key-based auth)
+#   ssh-host           SSH alias or user@ip for the target VPS (key-based auth)
 #   domain             Public domain pointing to the VPS, e.g. paperclip.acme-corp.com
 #   anthropic-api-key  Optional — sk-ant-... key for Claude (can be set later in UI)
 #
 # Prerequisites:
-#   - VPS running Ubuntu 22.04+ or Debian 12+
-#   - Your SSH public key already installed on the VPS (root or sudo user)
-#   - DNS A record for <domain> pointing to the VPS IP
-#   - Caddy will be installed for automatic HTTPS (port 80/443 must be open)
+#   - Ubuntu 22.04+ or Debian 12+
+#   - Your SSH public key installed on the VPS (root or sudo user)
+#   - DNS A record for <domain> already pointing to the VPS IP
+#   - Ports 80 and 443 open (Caddy needs them for Let's Encrypt)
 #
 # After success:
-#   1. Create SSH alias in ~/.ssh/config pointing to this VPS
+#   1. Open https://<domain> in your browser to complete Paperclip onboarding
 #   2. Run: ./scripts/onboard-customer.sh <customer-slug>
-#   3. The Paperclip admin URL will be https://<domain>
 
 set -euo pipefail
 
 SSH_HOST="${1:?Usage: $0 <ssh-host> <domain> [anthropic-api-key]}"
 DOMAIN="${2:?Usage: $0 <ssh-host> <domain> [anthropic-api-key]}"
 ANTHROPIC_API_KEY="${3:-}"
+
+PAPERCLIP_REPO="https://github.com/gearloose/paperclip.git"
+PAPERCLIP_DIR="/opt/paperclip"
+PAPERCLIP_DATA="/paperclip-data"
+PAPERCLIP_PORT=3100
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 info()    { echo -e "  ${CYAN}→${NC} $*"; }
@@ -37,148 +44,263 @@ warn()    { echo -e "  ${YELLOW}⚠️ ${NC} $*"; }
 die()     { echo -e "\n  ${RED}❌ $*${NC}" >&2; exit 1; }
 section() { echo -e "\n${CYAN}── $* ──${NC}"; }
 
+# Run a command on the remote host
+r() { ssh "$SSH_HOST" "$@"; }
+
 echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║   Paperclip VPS Setup — Gearloose        ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
 echo ""
-echo "  SSH host: $SSH_HOST"
-echo "  Domain:   $DOMAIN"
+echo "  SSH host:  $SSH_HOST"
+echo "  Domain:    $DOMAIN"
+echo "  Paperclip: $PAPERCLIP_REPO"
 [[ -n "$ANTHROPIC_API_KEY" ]] && echo "  Anthropic key: provided"
 
-# ── verify SSH ────────────────────────────────────────────────────────────────
+# ── step 1: verify SSH ────────────────────────────────────────────────────────
 
 section "Step 1: Verify SSH connectivity"
 
 ssh -o ConnectTimeout=10 -o BatchMode=yes "$SSH_HOST" "echo ok" 2>/dev/null \
-  | grep -q ok || die "Cannot SSH to $SSH_HOST. Check your ~/.ssh/config and key-based auth."
+  | grep -q ok || die "Cannot SSH to $SSH_HOST. Check ~/.ssh/config and key-based auth."
 ok "SSH to $SSH_HOST works"
 
-OS=$(ssh "$SSH_HOST" "lsb_release -si 2>/dev/null || cat /etc/os-release | grep ^ID= | cut -d= -f2" | tr -d '"')
-VERSION=$(ssh "$SSH_HOST" "lsb_release -sr 2>/dev/null || cat /etc/os-release | grep ^VERSION_ID= | cut -d= -f2" | tr -d '"')
-info "OS: $OS $VERSION"
-[[ "$OS" =~ Ubuntu|Debian|debian|ubuntu ]] || warn "Untested OS: $OS. Script is designed for Ubuntu/Debian."
+OS=$(r "lsb_release -si 2>/dev/null || cat /etc/os-release | grep ^ID= | cut -d= -f2" | tr -d '"')
+info "OS: $OS"
+[[ "$OS" =~ Ubuntu|Debian|debian|ubuntu ]] || warn "Untested OS: $OS"
 
-# ── install Docker ────────────────────────────────────────────────────────────
+# ── step 2: install system packages ──────────────────────────────────────────
 
-section "Step 2: Install Docker"
+section "Step 2: Install Node.js 22, pnpm, PostgreSQL 16, Caddy"
 
-DOCKER_INSTALLED=$(ssh "$SSH_HOST" "command -v docker >/dev/null 2>&1 && echo yes || echo no")
-if [[ "$DOCKER_INSTALLED" == "yes" ]]; then
-  DOCKER_VERSION=$(ssh "$SSH_HOST" "docker --version")
-  ok "Docker already installed: $DOCKER_VERSION"
+r "export DEBIAN_FRONTEND=noninteractive && sudo apt-get update -qq"
+
+# Node.js 22 via NodeSource
+NODE_VERSION=$(r "node --version 2>/dev/null | cut -c2- | cut -d. -f1 || echo 0")
+if [[ "$NODE_VERSION" -ge 22 ]]; then
+  ok "Node.js $NODE_VERSION already installed"
 else
-  info "Installing Docker via official install script..."
-  ssh "$SSH_HOST" "curl -fsSL https://get.docker.com | sh" \
-    || die "Docker install failed"
-  ok "Docker installed"
+  info "Installing Node.js 22..."
+  r "curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - 2>/dev/null"
+  r "sudo apt-get install -y nodejs"
+  ok "Node.js $(r 'node --version') installed"
 fi
 
-# Ensure Docker starts on boot
-ssh "$SSH_HOST" "sudo systemctl enable docker --now 2>/dev/null || true"
-ok "Docker service enabled"
+# pnpm
+if r "command -v pnpm >/dev/null 2>&1"; then
+  ok "pnpm already installed"
+else
+  info "Installing pnpm..."
+  r "sudo npm install -g pnpm"
+  ok "pnpm $(r 'pnpm --version') installed"
+fi
 
-# Add current user to docker group (non-root access)
-CURRENT_USER=$(ssh "$SSH_HOST" "whoami")
-ssh "$SSH_HOST" "sudo usermod -aG docker $CURRENT_USER 2>/dev/null || true"
-info "User $CURRENT_USER added to docker group (takes effect on next login)"
+# PostgreSQL 16
+PG_INSTALLED=$(r "command -v psql >/dev/null 2>&1 && echo yes || echo no")
+if [[ "$PG_INSTALLED" == "yes" ]]; then
+  ok "PostgreSQL already installed"
+else
+  info "Installing PostgreSQL 16..."
+  r "sudo apt-get install -y postgresql-16"
+  r "sudo systemctl enable postgresql --now"
+  ok "PostgreSQL installed"
+fi
 
-# ── install Caddy ─────────────────────────────────────────────────────────────
-
-section "Step 3: Install Caddy (HTTPS reverse proxy)"
-
-CADDY_INSTALLED=$(ssh "$SSH_HOST" "command -v caddy >/dev/null 2>&1 && echo yes || echo no")
+# Caddy
+CADDY_INSTALLED=$(r "command -v caddy >/dev/null 2>&1 && echo yes || echo no")
 if [[ "$CADDY_INSTALLED" == "yes" ]]; then
   ok "Caddy already installed"
 else
   info "Installing Caddy..."
-  ssh "$SSH_HOST" "
-    sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl 2>/dev/null || true
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-    sudo apt-get update -qq
-    sudo apt-get install -y caddy
-  " || die "Caddy install failed"
+  r "sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https 2>/dev/null || true"
+  r "curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg"
+  r "curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list"
+  r "sudo apt-get update -qq && sudo apt-get install -y caddy"
   ok "Caddy installed"
 fi
 
-# ── write Caddyfile ───────────────────────────────────────────────────────────
+# ── step 3: set up PostgreSQL database ───────────────────────────────────────
 
-section "Step 4: Configure Caddy for $DOMAIN"
+section "Step 3: Set up PostgreSQL database"
 
-ssh "$SSH_HOST" "sudo tee /etc/caddy/Caddyfile > /dev/null" << CADDYEOF
+DB_EXISTS=$(r "sudo -u postgres psql -tAc \"SELECT 1 FROM pg_database WHERE datname='paperclip'\" 2>/dev/null || echo ''")
+if [[ "$DB_EXISTS" == "1" ]]; then
+  ok "Database 'paperclip' already exists"
+else
+  info "Creating database and user..."
+  PG_PASSWORD=$(openssl rand -hex 24)
+  r "sudo -u postgres psql -c \"CREATE USER paperclip WITH PASSWORD '$PG_PASSWORD';\" 2>/dev/null || true"
+  r "sudo -u postgres psql -c \"CREATE DATABASE paperclip OWNER paperclip;\" 2>/dev/null || true"
+  # Store password for use in systemd unit
+  r "echo 'PG_PASSWORD=$PG_PASSWORD' | sudo tee $PAPERCLIP_DATA/.pg_password > /dev/null 2>/dev/null || \
+     (sudo mkdir -p $PAPERCLIP_DATA && echo 'PG_PASSWORD=$PG_PASSWORD' | sudo tee $PAPERCLIP_DATA/.pg_password > /dev/null)"
+  ok "Database 'paperclip' created"
+fi
+
+# Read the stored PG password
+PG_PASSWORD=$(r "sudo cat $PAPERCLIP_DATA/.pg_password 2>/dev/null | grep PG_PASSWORD | cut -d= -f2" || echo "")
+[[ -n "$PG_PASSWORD" ]] || die "Could not read PG_PASSWORD from $PAPERCLIP_DATA/.pg_password"
+DATABASE_URL="postgresql://paperclip:${PG_PASSWORD}@localhost:5432/paperclip"
+
+# ── step 4: clone Paperclip ───────────────────────────────────────────────────
+
+section "Step 4: Clone Paperclip from $PAPERCLIP_REPO"
+
+CURRENT_USER=$(r "whoami")
+
+ALREADY_CLONED=$(r "test -d $PAPERCLIP_DIR/.git && echo yes || echo no")
+if [[ "$ALREADY_CLONED" == "yes" ]]; then
+  info "$PAPERCLIP_DIR already exists — pulling latest..."
+  r "cd $PAPERCLIP_DIR && sudo git pull --ff-only 2>/dev/null || true"
+  ok "Up to date"
+else
+  info "Cloning to $PAPERCLIP_DIR (this may take a moment)..."
+  r "sudo git clone $PAPERCLIP_REPO $PAPERCLIP_DIR"
+  r "sudo chown -R $CURRENT_USER:$CURRENT_USER $PAPERCLIP_DIR"
+  ok "Cloned"
+fi
+
+# ── step 5: install dependencies and build ────────────────────────────────────
+
+section "Step 5: Install dependencies and build Paperclip (~5-10 min)"
+
+BUILD_SENTINEL="$PAPERCLIP_DIR/.gearloose-build-ok"
+ALREADY_BUILT=$(r "test -f $BUILD_SENTINEL && echo yes || echo no")
+
+if [[ "$ALREADY_BUILT" == "yes" ]]; then
+  info "Build already done (delete $BUILD_SENTINEL to force rebuild)"
+else
+  info "Running pnpm install..."
+  r "cd $PAPERCLIP_DIR && pnpm install 2>&1 | tail -3"
+  info "Running pnpm build..."
+  r "cd $PAPERCLIP_DIR && pnpm build 2>&1 | tail -5" \
+    || die "pnpm build failed — SSH in and check: cd $PAPERCLIP_DIR && pnpm build"
+  r "touch $BUILD_SENTINEL"
+  ok "Build complete"
+fi
+
+# ── step 6: generate secrets ──────────────────────────────────────────────────
+
+section "Step 6: Generate secrets"
+
+SECRETS_FILE="$PAPERCLIP_DATA/.secrets"
+r "sudo mkdir -p $PAPERCLIP_DATA && sudo chown $CURRENT_USER:$CURRENT_USER $PAPERCLIP_DATA"
+
+SECRETS_EXIST=$(r "test -f $SECRETS_FILE && echo yes || echo no")
+if [[ "$SECRETS_EXIST" == "yes" ]]; then
+  warn "$SECRETS_FILE already exists — not overwriting (secrets preserved)"
+else
+  BETTER_AUTH_SECRET=$(openssl rand -hex 32)
+  r "cat > $SECRETS_FILE" << SECRETSEOF
+BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+DATABASE_URL=$DATABASE_URL
+ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+PAPERCLIP_PUBLIC_URL=https://$DOMAIN
+SECRETSEOF
+  r "chmod 600 $SECRETS_FILE"
+  ok "Secrets written to $SECRETS_FILE"
+fi
+
+# ── step 7: write systemd unit ────────────────────────────────────────────────
+
+section "Step 7: Install Paperclip systemd service"
+
+r "sudo tee /etc/systemd/system/paperclip.service > /dev/null" << UNITEOF
+[Unit]
+Description=Paperclip AI
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=$CURRENT_USER
+WorkingDirectory=$PAPERCLIP_DIR
+EnvironmentFile=$SECRETS_FILE
+Environment=NODE_ENV=production
+Environment=PAPERCLIP_HOME=$PAPERCLIP_DATA
+Environment=PORT=$PAPERCLIP_PORT
+Environment=HOST=127.0.0.1
+
+ExecStart=/usr/bin/node \
+  --import $PAPERCLIP_DIR/server/node_modules/tsx/dist/loader.mjs \
+  $PAPERCLIP_DIR/server/dist/index.js
+
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=paperclip
+
+[Install]
+WantedBy=multi-user.target
+UNITEOF
+
+r "sudo systemctl daemon-reload"
+r "sudo systemctl enable paperclip"
+ok "paperclip.service installed and enabled"
+
+# ── step 8: configure Caddy ───────────────────────────────────────────────────
+
+section "Step 8: Configure Caddy for https://$DOMAIN"
+
+r "sudo tee /etc/caddy/Caddyfile > /dev/null" << CADDYEOF
 $DOMAIN {
-    reverse_proxy 127.0.0.1:3100
+    reverse_proxy 127.0.0.1:$PAPERCLIP_PORT
 }
 CADDYEOF
 
-ssh "$SSH_HOST" "sudo systemctl reload caddy 2>/dev/null || sudo systemctl start caddy"
-ok "Caddy configured for https://$DOMAIN → localhost:3100"
+r "sudo systemctl enable caddy"
+ok "Caddyfile written for $DOMAIN"
 
-# ── clone paperclipai-docker ──────────────────────────────────────────────────
+# ── step 9: set up backups ────────────────────────────────────────────────────
 
-section "Step 5: Clone Paperclip Docker setup"
+section "Step 9: Set up hourly database backups"
 
-DEPLOY_DIR="/opt/paperclip-deploy"
+BACKUP_DIR="$PAPERCLIP_DATA/backups"
+r "mkdir -p $BACKUP_DIR"
 
-ALREADY_CLONED=$(ssh "$SSH_HOST" "test -d $DEPLOY_DIR && echo yes || echo no")
-if [[ "$ALREADY_CLONED" == "yes" ]]; then
-  info "Deploy dir already exists at $DEPLOY_DIR — pulling latest..."
-  ssh "$SSH_HOST" "cd $DEPLOY_DIR && git pull --ff-only 2>/dev/null || true"
-  ok "Repo up to date"
-else
-  info "Cloning paperclipai-docker..."
-  ssh "$SSH_HOST" "sudo git clone https://github.com/MadeByAdem/paperclipai-docker.git $DEPLOY_DIR && sudo chown -R $CURRENT_USER:$CURRENT_USER $DEPLOY_DIR"
-  ok "Cloned to $DEPLOY_DIR"
-fi
+# Write backup script
+r "cat > $PAPERCLIP_DATA/backup.sh" << 'BACKUPEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+source "$(dirname "$0")/.secrets"
+BACKUP_DIR="$(dirname "$0")/backups"
+mkdir -p "$BACKUP_DIR"
+FILE="$BACKUP_DIR/paperclip-$(date +%Y%m%d-%H%M).sql.gz"
+pg_dump "$DATABASE_URL" | gzip > "$FILE"
+# Keep last 7 days (168 hourly backups)
+find "$BACKUP_DIR" -name "*.sql.gz" -mtime +7 -delete
+echo "Backup: $FILE"
+BACKUPEOF
+r "chmod +x $PAPERCLIP_DATA/backup.sh"
 
-# ── generate secrets and write .env ──────────────────────────────────────────
+# Install cron job (idempotent)
+r "(crontab -l 2>/dev/null | grep -v 'paperclip/backup.sh'; echo '0 * * * * $PAPERCLIP_DATA/backup.sh >> $PAPERCLIP_DATA/backups/backup.log 2>&1') | crontab -"
+ok "Hourly backups to $BACKUP_DIR (7-day retention)"
 
-section "Step 6: Generate secrets and write .env"
+# ── step 10: start services ───────────────────────────────────────────────────
 
-ENV_EXISTS=$(ssh "$SSH_HOST" "test -f $DEPLOY_DIR/.env && echo yes || echo no")
-if [[ "$ENV_EXISTS" == "yes" ]]; then
-  warn ".env already exists at $DEPLOY_DIR/.env — not overwriting (secrets preserved)"
-else
-  info "Generating BETTER_AUTH_SECRET and POSTGRES_PASSWORD..."
+section "Step 10: Start all services"
 
-  BETTER_AUTH_SECRET=$(openssl rand -hex 32)
-  POSTGRES_PASSWORD=$(openssl rand -hex 16)
+info "Starting PostgreSQL..."
+r "sudo systemctl start postgresql"
 
-  ENV_CONTENT="# Paperclip Docker — generated by setup-vps.sh $(date -u +%Y-%m-%dT%H:%M:%SZ)
-BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
-PAPERCLIP_PUBLIC_URL=https://$DOMAIN
-POSTGRES_PASSWORD=$POSTGRES_PASSWORD
-ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-OPENAI_API_KEY=
-"
-  echo "$ENV_CONTENT" | ssh "$SSH_HOST" "cat > $DEPLOY_DIR/.env && chmod 600 $DEPLOY_DIR/.env"
-  ok "Written: $DEPLOY_DIR/.env (chmod 600)"
-fi
+info "Starting Paperclip..."
+r "sudo systemctl start paperclip"
 
-# ── build and start Paperclip ─────────────────────────────────────────────────
+info "Reloading Caddy..."
+r "sudo systemctl reload caddy 2>/dev/null || sudo systemctl start caddy"
 
-section "Step 7: Build and start Paperclip"
+ok "All services started"
 
-# Build from source (MadeByAdem builds from paperclipai/paperclip source)
-info "Building Paperclip Docker image (this takes 3–8 minutes on first run)..."
-ssh "$SSH_HOST" "cd $DEPLOY_DIR && docker compose build 2>&1 | tail -5" \
-  || die "docker compose build failed — check logs on VPS: cd $DEPLOY_DIR && docker compose build"
-ok "Build complete"
+# ── step 11: wait for health ──────────────────────────────────────────────────
 
-info "Starting Paperclip in detached mode..."
-ssh "$SSH_HOST" "cd $DEPLOY_DIR && docker compose up -d" \
-  || die "docker compose up failed"
-ok "Paperclip started"
+section "Step 11: Wait for Paperclip to be healthy"
 
-# ── wait for health ───────────────────────────────────────────────────────────
-
-section "Step 8: Wait for Paperclip to be healthy"
-
-info "Polling http://localhost:3100/api/health (up to 90s)..."
+info "Polling http://localhost:$PAPERCLIP_PORT/api/health (up to 120s)..."
 ATTEMPTS=0
-MAX_ATTEMPTS=30
-until ssh "$SSH_HOST" "curl -sf http://localhost:3100/api/health > /dev/null 2>&1" \
+MAX_ATTEMPTS=40
+until r "curl -sf http://localhost:$PAPERCLIP_PORT/api/health > /dev/null 2>&1" \
     || [[ $ATTEMPTS -ge $MAX_ATTEMPTS ]]; do
   ATTEMPTS=$((ATTEMPTS + 1))
   echo -n "."
@@ -187,34 +309,13 @@ done
 echo ""
 
 if [[ $ATTEMPTS -ge $MAX_ATTEMPTS ]]; then
-  warn "Paperclip not healthy after 90s."
-  echo "  Debug: ssh $SSH_HOST 'cd $DEPLOY_DIR && docker compose logs --tail 30'"
+  warn "Paperclip not healthy after 120s"
+  info "Check logs: ssh $SSH_HOST 'journalctl -u paperclip --no-pager -n 50'"
   die "Health check timed out"
 fi
-ok "Paperclip is healthy at http://localhost:3100"
 
-# ── onboard (create first admin user) ─────────────────────────────────────────
-
-section "Step 9: Run Paperclip onboarding wizard"
-
-CONTAINER_NAME=$(ssh "$SSH_HOST" "cd $DEPLOY_DIR && docker compose ps --format json 2>/dev/null | python3 -c \"import sys,json; [print(c.get('Name','')) for c in [json.loads(l) for l in sys.stdin] if c.get('Service','') == 'server']\" 2>/dev/null | head -1 || echo ''")
-
-if [[ -z "$CONTAINER_NAME" ]]; then
-  CONTAINER_NAME="paperclipai-docker-server-1"
-  warn "Could not detect container name — assuming: $CONTAINER_NAME"
-fi
-
-info "Container name: $CONTAINER_NAME"
-echo ""
-echo -e "  ${YELLOW}ACTION REQUIRED:${NC} Create the first admin account interactively."
-echo ""
-echo "  Run this command to complete setup:"
-echo ""
-echo -e "    ${CYAN}ssh $SSH_HOST \"docker exec -it $CONTAINER_NAME pnpm paperclipai onboard\"${NC}"
-echo ""
-echo "  This creates the admin user and initial company."
-echo "  (If pnpm not available inside container, try: node /app/dist/cli onboard)"
-echo ""
+HEALTH=$(r "curl -s http://localhost:$PAPERCLIP_PORT/api/health")
+ok "Paperclip is healthy: $HEALTH"
 
 # ── done ─────────────────────────────────────────────────────────────────────
 
@@ -222,28 +323,23 @@ section "Done"
 
 echo ""
 echo -e "  ${GREEN}Paperclip is running at:${NC}"
-echo "    https://$DOMAIN  (via Caddy HTTPS)"
-echo "    http://localhost:3100  (internal, via SSH tunnel)"
+echo "    https://$DOMAIN  (Caddy HTTPS — cert auto-issued)"
+echo "    http://localhost:$PAPERCLIP_PORT  (internal)"
 echo ""
-echo "  Container: $CONTAINER_NAME"
-echo "  Deploy dir: $DEPLOY_DIR"
-echo "  Logs: ssh $SSH_HOST 'cd $DEPLOY_DIR && docker compose logs -f'"
+echo -e "  ${CYAN}Service management:${NC}"
+echo "    Status:  ssh $SSH_HOST 'systemctl status paperclip postgresql caddy'"
+echo "    Logs:    ssh $SSH_HOST 'journalctl -u paperclip -f'"
+echo "    Upgrade: ssh $SSH_HOST 'cd $PAPERCLIP_DIR && git pull && pnpm build && sudo systemctl restart paperclip'"
 echo ""
 echo -e "  ${CYAN}Next steps:${NC}"
-echo "  1. Add SSH alias to ~/.ssh/config if not already done:"
+echo "  1. Open https://$DOMAIN in your browser to complete Paperclip onboarding"
+echo "     (create your company and first admin user)"
+echo "  2. Add SSH alias to ~/.ssh/config if not already:"
 echo "       Host <customer-slug>"
 echo "         HostName <vps-ip>"
-echo "         User root"
-echo "  2. Run the onboard command above to create the admin user"
-echo "  3. Note down: company UUID (from Paperclip Settings → General)"
-echo "  4. Run: ./scripts/onboard-customer.sh <customer-slug>"
+echo "         User $CURRENT_USER"
+echo "  3. Run: ./scripts/onboard-customer.sh <customer-slug>"
 echo ""
-echo -e "  ${YELLOW}When onboard-customer.sh asks for:${NC}"
-echo "    Docker container name → enter: $CONTAINER_NAME"
-echo "    Paperclip URL (internal) → enter: http://localhost:3100  (default)"
-echo "    Public HTTPS URL → enter: https://$DOMAIN"
-echo ""
-echo "  Upgrade Paperclip later:"
-echo "    ssh $SSH_HOST 'cd $DEPLOY_DIR && git pull && docker compose build && docker compose up -d'"
-echo "    PC_PASSWORD=<pw> ./scripts/post-upgrade.sh <customer-slug>"
+echo "  Backup: $BACKUP_DIR (hourly, 7-day retention)"
+echo "  Secrets: $SECRETS_FILE"
 echo ""

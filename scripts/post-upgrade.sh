@@ -1,21 +1,13 @@
 #!/usr/bin/env bash
-# post-upgrade.sh — full recovery sequence after a Paperclip container image rebuild
+# post-upgrade.sh — upgrade Paperclip and redeploy all plugins
 #
-# Run this whenever Paperclip is upgraded (new Docker image pulled and container recreated).
-# It will:
-#   1. Apply compiled JS patches (plugin-tool-dispatcher + plugin-loader fixes)
-#   2. Apply agent-tool-auth patch (assertBoard → assertBoardOrAgent on tool endpoints)
-#   3. Restart the container to pick up the patches
-#   4. Wait for Paperclip to be healthy
-#   5. Redeploy all plugins that have a customer config in customers/<slug>/
-#   6. Rewire the MCP proxy (re-runs npm install inside container after image rebuild)
-#   7. Run smoke tests to confirm tools are callable
+# Upgrades Paperclip on the bare-metal server (git pull + pnpm build + systemctl restart),
+# then redeploys all provisioned plugins and smoke-tests them.
+#
+# No patches to reapply — patches live in the source fork and survive upgrades automatically.
 #
 # Usage:
-#   ./scripts/post-upgrade.sh <customer-slug>
-#   ./scripts/post-upgrade.sh gearloose
-#
-# PC_PASSWORD must be set in env or customers/<slug>.secrets.
+#   PC_PASSWORD=<pw> ./scripts/post-upgrade.sh <customer-slug>
 
 set -euo pipefail
 
@@ -38,8 +30,7 @@ set +a
 
 SSH_HOST="${SSH_HOST:?SSH_HOST not set}"
 PC_HOST="${PC_HOST:?PC_HOST not set}"
-CONTAINER="${CONTAINER:-paperclipai-docker-server-1}"
-DOCKER="DOCKER_HOST=unix:///var/run/docker.sock docker"
+PAPERCLIP_DIR="${PAPERCLIP_DIR:-/opt/paperclip}"
 CUSTOMER_DIR="$REPO_ROOT/customers/$CUSTOMER"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -51,30 +42,45 @@ section() { echo -e "\n${CYAN}── $* ──${NC}"; }
 
 echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║   Paperclip Post-Upgrade Recovery        ║${NC}"
+echo -e "${CYAN}║   Paperclip Post-Upgrade                 ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
 echo ""
 echo "  Customer: $CUSTOMER"
 echo "  SSH host: $SSH_HOST"
-echo "  Container: $CONTAINER"
+echo "  Paperclip dir: $PAPERCLIP_DIR"
 
-# ── step 1: apply compiled JS patches ────────────────────────────────────────
+# ── step 1: pull latest Paperclip source ─────────────────────────────────────
 
-section "Step 1: Apply compiled JS patches"
+section "Step 1: Pull latest Paperclip"
 
-"$SCRIPT_DIR/patch-paperclip-container.sh" "$CUSTOMER"
+info "git pull in $PAPERCLIP_DIR..."
+ssh "$SSH_HOST" "cd $PAPERCLIP_DIR && git pull --ff-only" \
+  || die "git pull failed. If there are local changes: ssh $SSH_HOST 'cd $PAPERCLIP_DIR && git status'"
+ok "Source updated"
 
-# ── step 2: restart container ─────────────────────────────────────────────────
+# ── step 2: rebuild ───────────────────────────────────────────────────────────
 
-section "Step 2: Restart container"
+section "Step 2: Rebuild Paperclip"
 
-info "Restarting $CONTAINER..."
-ssh "$SSH_HOST" "$DOCKER restart $CONTAINER" > /dev/null
+info "pnpm install (may be a no-op if lockfile unchanged)..."
+ssh "$SSH_HOST" "cd $PAPERCLIP_DIR && pnpm install 2>&1 | tail -3"
+
+info "pnpm build..."
+ssh "$SSH_HOST" "cd $PAPERCLIP_DIR && pnpm build 2>&1 | tail -5" \
+  || die "pnpm build failed. Check: ssh $SSH_HOST 'cd $PAPERCLIP_DIR && pnpm build'"
+ok "Build complete"
+
+# ── step 3: restart paperclip ─────────────────────────────────────────────────
+
+section "Step 3: Restart Paperclip"
+
+info "systemctl restart paperclip..."
+ssh "$SSH_HOST" "sudo systemctl restart paperclip"
 ok "Restart command sent"
 
-# ── step 3: wait for Paperclip to be healthy ─────────────────────────────────
+# ── step 4: wait for health ───────────────────────────────────────────────────
 
-section "Step 3: Waiting for Paperclip to come back up"
+section "Step 4: Wait for Paperclip to come back up"
 
 info "Polling $PC_HOST/api/health (up to 60s)..."
 ATTEMPTS=0
@@ -87,23 +93,22 @@ done
 echo ""
 
 if [[ $ATTEMPTS -ge $MAX_ATTEMPTS ]]; then
-  die "Paperclip did not come up within 60s. Check container logs: ssh $SSH_HOST \"$DOCKER logs $CONTAINER --tail 50\""
+  die "Paperclip did not come up within 60s. Logs: ssh $SSH_HOST 'journalctl -u paperclip --no-pager -n 50'"
 fi
 ok "Paperclip is up"
 
-# ── step 4: redeploy all provisioned plugins ──────────────────────────────────
+# ── step 5: redeploy all provisioned plugins ──────────────────────────────────
 
-section "Step 4: Redeploy all provisioned plugins"
+section "Step 5: Redeploy all provisioned plugins"
 
 CUSTOMER_CONFIGS=("$CUSTOMER_DIR"/plugin-*.json)
 if [[ ${#CUSTOMER_CONFIGS[@]} -eq 0 ]] || [[ ! -f "${CUSTOMER_CONFIGS[0]}" ]]; then
-  warn "No customer plugin configs found in $CUSTOMER_DIR — skipping plugin redeployment"
-  warn "Provision plugins first with: PC_PASSWORD=<pw> ./scripts/provision-plugin.sh $CUSTOMER packages/plugin-<name>"
+  warn "No customer plugin configs found in $CUSTOMER_DIR — skipping"
 else
   DEPLOY_PASS=0
   DEPLOY_FAIL=0
   for config_file in "$CUSTOMER_DIR"/plugin-*.json; do
-    plugin_slug=$(basename "$config_file" .json)          # e.g. plugin-dinero
+    plugin_slug=$(basename "$config_file" .json)
     plugin_dir="$REPO_ROOT/packages/$plugin_slug"
 
     if [[ ! -d "$plugin_dir" ]]; then
@@ -119,39 +124,30 @@ else
       ok "$plugin_slug redeployed"
       DEPLOY_PASS=$((DEPLOY_PASS + 1))
     else
-      warn "$plugin_slug deployment failed — check output above"
+      warn "$plugin_slug deployment failed"
       echo "$deploy_out" | tail -5
       DEPLOY_FAIL=$((DEPLOY_FAIL + 1))
     fi
   done
-
-  echo ""
   info "Plugin redeployment: $DEPLOY_PASS succeeded, $DEPLOY_FAIL failed"
 fi
 
-# ── step 5: rewire MCP proxy ──────────────────────────────────────────────────
-# Container rebuild wipes node_modules inside the container overlay — the proxy
-# files persist in the /paperclip volume but npm install must be re-run.
+# ── step 6: rewire MCP proxy ──────────────────────────────────────────────────
 
-section "Step 5: Rewire MCP proxy"
+section "Step 6: Rewire MCP proxy"
 
 if PC_PASSWORD="$PC_PASSWORD" "$SCRIPT_DIR/wire-mcp-to-customer.sh" "$CUSTOMER"; then
   ok "MCP proxy rewired"
 else
-  warn "MCP proxy wiring failed — agents may not have tool access"
-  warn "Retry with: PC_PASSWORD=<pw> ./scripts/wire-mcp-to-customer.sh $CUSTOMER"
+  warn "MCP proxy wiring failed — retry with: PC_PASSWORD=<pw> ./scripts/wire-mcp-to-customer.sh $CUSTOMER"
 fi
 
-# ── step 6: smoke test ────────────────────────────────────────────────────────
+# ── step 7: smoke test ────────────────────────────────────────────────────────
 
-section "Step 6: Smoke tests"
+section "Step 7: Smoke tests"
 
 if ! "$SCRIPT_DIR/smoke-test-plugins.sh" "$CUSTOMER"; then
   warn "Some smoke tests failed — see above"
-  echo ""
-  echo "  Debug steps:"
-  echo "    ssh $SSH_HOST \"$DOCKER logs $CONTAINER --tail 100 2>&1 | grep -i 'plugin\\|tool\\|error'\""
-  echo "    ./scripts/patch-paperclip-container.sh $CUSTOMER  # verify patches still applied"
   exit 1
 fi
 
@@ -160,8 +156,6 @@ fi
 section "Done"
 
 echo ""
-echo "  Post-upgrade recovery complete for customer '$CUSTOMER'."
-echo ""
-echo "  Next: watch agents use tools:"
-echo "  ssh $SSH_HOST \"$DOCKER logs $CONTAINER -f 2>&1 | grep -i 'mcp\\|tool\\|plugin'\""
+echo "  Post-upgrade complete for customer '$CUSTOMER'."
+echo "  Logs: ssh $SSH_HOST 'journalctl -u paperclip -f'"
 echo ""
