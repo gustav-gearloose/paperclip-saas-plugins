@@ -106,10 +106,25 @@ for PLUGIN_DIR in "${PLUGIN_DIRS[@]}"; do
 
   worker_tool_count=$(grep -c 'ctx\.tools\.register(' "$WORKER_SRC" 2>/dev/null || echo 0)
   if [[ "$manifest_tools" -eq "$worker_tool_count" ]]; then
-    ok "Tool parity: manifest=$manifest_tools worker=$worker_tool_count"
+    ok "Tool count parity: manifest=$manifest_tools worker=$worker_tool_count"
     PASS=$((PASS+1))
   else
     fail "Tool count mismatch: manifest=$manifest_tools worker=$worker_tool_count — check for missing register() calls or manifest entries"
+  fi
+
+  # Tool name parity (compiled dist — catches manifest/worker name divergence)
+  if [[ -f "$PLUGIN_DIR/dist/manifest.js" && -f "$PLUGIN_DIR/dist/worker.js" ]]; then
+    manifest_names=$(node -e "import('$PLUGIN_DIR/dist/manifest.js').then(m => (m.default.tools||[]).forEach(t => console.log(t.name))).catch(()=>{})" 2>/dev/null | sort)
+    worker_names=$(grep -o 'ctx\.tools\.register("[^"]*"' "$PLUGIN_DIR/dist/worker.js" 2>/dev/null | grep -o '"[^"]*"' | tr -d '"' | sort)
+    if [[ "$manifest_names" = "$worker_names" ]]; then
+      ok "Tool name parity: all names match between manifest and worker"
+      PASS=$((PASS+1))
+    else
+      fail "Tool name mismatch between manifest and worker:"
+      diff <(echo "$manifest_names") <(echo "$worker_names") | grep '^[<>]' | sed 's/^< /  manifest-only: /; s/^> /  worker-only: /'
+    fi
+  else
+    info "Skipping tool name parity (dist not built — run npm run build first)"
   fi
 
   # Worker must call runWorker at the end
