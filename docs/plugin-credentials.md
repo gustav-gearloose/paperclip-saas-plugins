@@ -273,3 +273,21 @@ PC_PASSWORD=<pw> \
   APITOKENREF=<pipedrive-api-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-pipedrive
 ```
+
+---
+
+## Intercom
+
+**Env vars:** `ACCESSTOKENREF`
+
+**Where to find them:**
+1. Log in to Intercom → click **Settings** (bottom-left gear icon)
+2. Go to **Integrations → Developer Hub**
+3. Open your app (or create one) → **Authentication**
+4. Copy the **Access Token** (this is a long-lived token for your workspace)
+
+```bash
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<intercom-access-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-intercom
+```

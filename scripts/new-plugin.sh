@@ -322,9 +322,15 @@ $(printf '%s' "$CONFIG_VALIDATE")$(printf '%s' "$SECRET_RESOLVE")
 
     ctx.logger.info("$PLUGIN_NAME plugin: registering tools");
 $(printf '%s' "$TOOL_HANDLERS")
+    ctx.logger.info("$PLUGIN_NAME plugin ready — ${#TOOLS[@]} tools registered");
+  },
+
+  async onHealth() {
+    return { status: "ok", message: "$PLUGIN_NAME plugin running" };
   },
 });
 
+export default plugin;
 runWorker(plugin, import.meta.url);
 EOF
 ok "src/worker.ts"

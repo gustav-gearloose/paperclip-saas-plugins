@@ -121,6 +121,7 @@ SMOKE_TOOLS=(
   "teams|teams_list_teams|{}"
   "fortnox|fortnox_list_customers|{}"
   "pipedrive|pipedrive_list_pipelines|{}"
+  "intercom|intercom_list_admins|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
