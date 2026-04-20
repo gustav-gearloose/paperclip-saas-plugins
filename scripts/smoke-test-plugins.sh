@@ -147,6 +147,7 @@ SMOKE_TOOLS=(
   "zoho-crm|zoho_crm_list_users|{}"
   "mailgun|mailgun_list_domains|{}"
   "postmark|postmark_get_server|{}"
+  "outlook|outlook_list_folders|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

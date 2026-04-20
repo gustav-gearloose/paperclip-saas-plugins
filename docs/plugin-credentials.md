@@ -721,3 +721,29 @@ PC_PASSWORD=<pw> \
   SERVERTOKENREF=<postmark-server-api-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-postmark
 ```
+
+---
+
+## Microsoft Outlook (email + calendar)
+
+**Env vars:** `CLIENTIDREF`, `CLIENTSECRETREF`, `PLUGIN_CONFIG_tenantId`, `PLUGIN_CONFIG_userPrincipalName`
+
+> If you already have a Teams plugin set up, the **same Azure AD app** can be reused — just grant it the additional Graph API permissions below.
+
+**Where to find them:**
+1. Go to [Azure Portal](https://portal.azure.com) → Azure Active Directory → App registrations → select (or create) your app
+2. **Tenant ID**: Azure Active Directory → Overview → Tenant ID
+3. **Client ID**: App registrations → your app → Overview → Application (client) ID
+4. **Client Secret**: your app → Certificates & secrets → New client secret
+5. **Required API permissions** (Application, not Delegated): `Mail.Read`, `Mail.Send`, `Calendars.ReadWrite`
+6. Click **Grant admin consent** for your tenant
+7. **userPrincipalName**: the mailbox email address to access, e.g. `assistant@company.com`
+
+```bash
+PC_PASSWORD=<pw> \
+  CLIENTIDREF=<azure-client-id> \
+  CLIENTSECRETREF=<azure-client-secret> \
+  PLUGIN_CONFIG_tenantId=<azure-tenant-id> \
+  PLUGIN_CONFIG_userPrincipalName=<mailbox@company.com> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-outlook
+```

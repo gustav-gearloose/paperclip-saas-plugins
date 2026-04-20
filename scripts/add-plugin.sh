@@ -114,7 +114,8 @@ plugin_dir() {
     37) echo "packages/plugin-zoho-crm" ;;
     38) echo "packages/plugin-mailgun" ;;
     39) echo "packages/plugin-postmark" ;;
-    40) echo "__custom__" ;;
+    40) echo "packages/plugin-outlook" ;;
+    41) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -160,7 +161,8 @@ plugin_env_vars() {
     37) printf 'ACCESSTOKENREF\nPLUGIN_CONFIG_domain' ;;
     38) printf 'APIKEYREF\nPLUGIN_CONFIG_domain\nPLUGIN_CONFIG_region' ;;
     39) printf 'SERVERTOKENREF' ;;
-    40) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    40) printf 'CLIENTIDREF\nCLIENTSECRETREF\nPLUGIN_CONFIG_tenantId\nPLUGIN_CONFIG_userPrincipalName' ;;
+    41) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -209,14 +211,15 @@ echo "   36) Klaviyo (email/SMS marketing — profiles, lists, campaigns, flows,
 echo "   37) Zoho CRM (contacts, leads, deals, notes, activities)"
 echo "   38) Mailgun (transactional email, events, suppressions, mailing lists)"
 echo "   39) Postmark (transactional email, bounce management, templates, streams)"
-echo "   40) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   40) Microsoft Outlook (email + calendar via Graph API — same Azure app as Teams)"
+echo "   41) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to add? (comma-separated numbers, e.g. 1,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39)  # 40 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40)  # 41 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi

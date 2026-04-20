@@ -1,0 +1,16 @@
+{
+  "configJson": {
+    "tenantId": "",
+    "userPrincipalName": ""
+  },
+  "secretRefs": {
+    "clientIdRef": {
+      "name": "outlook-client-id",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    },
+    "clientSecretRef": {
+      "name": "outlook-client-secret",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    }
+  }
+}

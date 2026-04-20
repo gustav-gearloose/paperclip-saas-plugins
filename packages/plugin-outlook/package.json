@@ -1,0 +1,19 @@
+{
+  "name": "@gearloose/paperclip-plugin-outlook",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Paperclip plugin: Microsoft Outlook email and calendar via Microsoft Graph API",
+  "main": "./dist/worker.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "paperclipPlugin": {
+    "manifest": "./dist/manifest.js",
+    "worker": "./dist/worker.js"
+  },
+  "devDependencies": {
+    "@paperclipai/plugin-sdk": "2026.416.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}
