@@ -579,3 +579,19 @@ PC_PASSWORD=<pw> \
   APITOKENREF=<calendly-personal-access-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-calendly
 ```
+
+## Mailchimp (email marketing)
+
+**Env vars:** `APIKEYREF`, `PLUGIN_CONFIG_serverPrefix`
+
+**Where to find them:**
+1. Log in to Mailchimp → click your avatar → **Profile → Extras → API keys**
+2. Click **Create a Key**, give it a name, and copy it — the key ends with `-us14` or similar; the suffix before the dash is your **Server Prefix** (e.g. `us14`)
+3. Store the full API key as a Paperclip secret; set `serverPrefix` to the prefix (e.g. `us14`)
+
+```bash
+PC_PASSWORD=<pw> \
+  APIKEYREF=<mailchimp-api-key> \
+  PLUGIN_CONFIG_serverPrefix=us14 \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-mailchimp
+```

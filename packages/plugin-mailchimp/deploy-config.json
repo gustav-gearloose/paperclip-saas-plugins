@@ -1,0 +1,6 @@
+{
+  "configJson": { "serverPrefix": "REPLACE_WITH_MAILCHIMP_SERVER_PREFIX" },
+  "secretRefs": {
+    "apiKeyRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}
