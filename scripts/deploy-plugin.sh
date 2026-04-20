@@ -253,7 +253,11 @@ print(json.dumps({"configJson": config}))
 PYEOF2
   )
 
-  pc_curl_post "/api/plugins/$PLUGIN_ID/config" "-d '$CONFIG_JSON'" \
+  CONFIG_B64=$(printf '%s' "$CONFIG_JSON" | base64)
+  ssh "$SSH_HOST" "echo $CONFIG_B64 | base64 -d | curl -s -b /tmp/pc_deploy_cookies.txt \
+    -X POST '$PC_HOST/api/plugins/$PLUGIN_ID/config' \
+    -H 'Content-Type: application/json' -H 'Origin: $PC_ORIGIN' \
+    --data-binary @-" \
     | python3 -c "import sys,json; d=json.load(sys.stdin); print('config set, error:', d.get('error','none'))"
 
   # Restart worker to pick up config
