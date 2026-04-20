@@ -569,10 +569,9 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_email=<atlassian-email> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-jira
 
-# GitHub (1 secret + optional owner config)
+# GitHub (1 secret)
 PC_PASSWORD=<pw> \
-  ACCESSTOKENREF=<github-personal-access-token> \
-  PLUGIN_CONFIG_defaultOwner=<github-org-or-user> \
+  TOKENREF=<github-personal-access-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-github
 
 # Freshdesk (1 secret + 1 configJson field)
@@ -582,7 +581,7 @@ PC_PASSWORD=<pw> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-freshdesk
 
 # Stripe (1 secret)
-PC_PASSWORD=<pw> APIKEYREF=<stripe-secret-key> \
+PC_PASSWORD=<pw> SECRETKEYREF=<stripe-secret-key> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-stripe
 
 # WooCommerce (2 secrets + 1 configJson field)
@@ -631,21 +630,21 @@ PC_PASSWORD=<pw> APITOKENREF=<todoist-api-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-todoist
 
 # Airtable (1 secret)
-PC_PASSWORD=<pw> ACCESSTOKENREF=<airtable-personal-access-token> \
+PC_PASSWORD=<pw> APIKEYREF=<airtable-personal-access-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-airtable
 
 # Harvest (1 secret + 1 configJson field)
 PC_PASSWORD=<pw> \
-  ACCESSTOKENREF=<harvest-access-token> \
+  APITOKENREF=<harvest-access-token> \
   PLUGIN_CONFIG_accountId=<harvest-account-id> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-harvest
 
 # Typeform (1 secret)
-PC_PASSWORD=<pw> ACCESSTOKENREF=<typeform-personal-access-token> \
+PC_PASSWORD=<pw> APITOKENREF=<typeform-personal-access-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-typeform
 
 # Calendly (1 secret)
-PC_PASSWORD=<pw> ACCESSTOKENREF=<calendly-personal-access-token> \
+PC_PASSWORD=<pw> APITOKENREF=<calendly-personal-access-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-calendly
 
 # Mailchimp (1 secret + 1 configJson field)
@@ -657,13 +656,13 @@ PC_PASSWORD=<pw> \
 # ActiveCampaign (1 secret + 1 configJson field)
 PC_PASSWORD=<pw> \
   APIKEYREF=<activecampaign-api-key> \
-  PLUGIN_CONFIG_baseUrl=https://your-account.api-us1.com \
+  PLUGIN_CONFIG_accountUrl=https://your-account.api-us1.com \
   ./scripts/provision-plugin.sh <slug> packages/plugin-activecampaign
 
-# Twilio (2 secrets)
+# Twilio (1 secret + 1 configJson field)
 PC_PASSWORD=<pw> \
-  ACCOUNTSIDREF=<twilio-account-sid> \
   AUTHTOKENREF=<twilio-auth-token> \
+  PLUGIN_CONFIG_accountSid=<twilio-account-sid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-twilio
 
 # Brevo (1 secret)
@@ -703,32 +702,29 @@ PC_PASSWORD=<pw> SERVERTOKENREF=<postmark-server-api-token> \
 | Dinero | `dineroClientIdRef` | `DINEROCLIENTIDREF` |
 | Dinero | `dineroClientSecretRef` | `DINEROCLIENTSECRETREF` |
 | Dinero | `dineroApiKeyRef` | `DINEROAPIKEYREF` |
-| Billy, Fortnox, HubSpot, Intercom, Shopify, Asana, Airtable, Typeform, Calendly | `accessTokenRef` | `ACCESSTOKENREF` |
+| Billy, Fortnox, HubSpot, Intercom, Shopify, Asana, Zoho CRM | `accessTokenRef` | `ACCESSTOKENREF` |
 | e-conomic | `appSecretTokenRef` | `APPSECRETTOKENREF` |
 | e-conomic | `agreementGrantTokenRef` | `AGREEMENTGRANTTOKENREF` |
-| Zendesk, Pipedrive, Jira, ClickUp, Todoist, monday.com, Trello | `apiTokenRef` | `APITOKENREF` |
+| Zendesk, Pipedrive, Jira, ClickUp, Todoist, monday.com, Trello (token), Harvest, Typeform, Calendly | `apiTokenRef` | `APITOKENREF` |
 | Slack | `botTokenRef` | `BOTTOKENREF` |
 | Google Sheets | `serviceAccountJsonRef` | `SERVICEACCOUNTJSONREF` |
 | Notion | `integrationTokenRef` | `INTEGRATIONTOKENREF` |
-| Linear, Freshdesk, Stripe, Mailchimp, ActiveCampaign, Brevo, SendGrid, Klaviyo, Zoho CRM, Mailgun | `apiKeyRef` | `APIKEYREF` |
+| Linear, Freshdesk, Airtable, Trello (key), Mailchimp, ActiveCampaign, Brevo, SendGrid, Klaviyo, Mailgun | `apiKeyRef` | `APIKEYREF` |
 | Email | `emailPasswordRef` | `EMAILPASSWORDREF` |
-| Teams | `tenantIdRef` | `TENANTIDREF` |
 | Teams | `clientIdRef` | `CLIENTIDREF` |
 | Teams | `clientSecretRef` | `CLIENTSECRETREF` |
 | Fortnox | `refreshTokenRef` | `REFRESHTOKENREF` |
+| Fortnox | `clientIdRef` | `CLIENTIDREF` |
+| Fortnox | `clientSecretRef` | `CLIENTSECRETREF` |
 | WooCommerce | `consumerKeyRef` | `CONSUMERKEYREF` |
 | WooCommerce | `consumerSecretRef` | `CONSUMERSECRETREF` |
-| Twilio | `accountSidRef` | `ACCOUNTSIDREF` |
 | Twilio | `authTokenRef` | `AUTHTOKENREF` |
-| Trello | `apiKeyRef` | `APIKEYREF` |
 | Salesforce | `accessTokenRef` | `ACCESSTOKENREF` |
 | Salesforce | `refreshTokenRef` | `REFRESHTOKENREF` |
 | Salesforce | `clientIdRef` | `CLIENTIDREF` |
 | Salesforce | `clientSecretRef` | `CLIENTSECRETREF` |
-| Harvest | `accessTokenRef` | `ACCESSTOKENREF` |
-| Mailchimp | `apiKeyRef` | `APIKEYREF` |
-| Klaviyo | `apiKeyRef` | `APIKEYREF` |
-| Zoho CRM | `accessTokenRef` | `ACCESSTOKENREF` |
+| GitHub | `tokenRef` | `TOKENREF` |
+| Stripe | `secretKeyRef` | `SECRETKEYREF` |
 | Postmark | `serverTokenRef` | `SERVERTOKENREF` |
 
 After this step, `customers/<slug>/plugin-*.json` files exist with resolved secret UUIDs. Commit them.
