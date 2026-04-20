@@ -7,7 +7,8 @@
 #   2. Restart the container to pick up the patches
 #   3. Wait for Paperclip to be healthy
 #   4. Redeploy all plugins that have a customer config in customers/<slug>/
-#   5. Run smoke tests to confirm tools are callable
+#   5. Rewire the MCP proxy (re-runs npm install inside container after image rebuild)
+#   6. Run smoke tests to confirm tools are callable
 #
 # Usage:
 #   ./scripts/post-upgrade.sh <customer-slug>
@@ -127,9 +128,22 @@ else
   info "Plugin redeployment: $DEPLOY_PASS succeeded, $DEPLOY_FAIL failed"
 fi
 
-# ── step 5: smoke test ────────────────────────────────────────────────────────
+# ── step 5: rewire MCP proxy ──────────────────────────────────────────────────
+# Container rebuild wipes node_modules inside the container overlay — the proxy
+# files persist in the /paperclip volume but npm install must be re-run.
 
-section "Step 5: Smoke tests"
+section "Step 5: Rewire MCP proxy"
+
+if PC_PASSWORD="$PC_PASSWORD" "$SCRIPT_DIR/wire-mcp-to-customer.sh" "$CUSTOMER"; then
+  ok "MCP proxy rewired"
+else
+  warn "MCP proxy wiring failed — agents may not have tool access"
+  warn "Retry with: PC_PASSWORD=<pw> ./scripts/wire-mcp-to-customer.sh $CUSTOMER"
+fi
+
+# ── step 6: smoke test ────────────────────────────────────────────────────────
+
+section "Step 6: Smoke tests"
 
 if ! "$SCRIPT_DIR/smoke-test-plugins.sh" "$CUSTOMER"; then
   warn "Some smoke tests failed — see above"
