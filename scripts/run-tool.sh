@@ -73,11 +73,32 @@ PYEOF
 # Write the params to a file to avoid shell quoting issues in the runner
 printf '%s' "$TOOL_PARAMS" > "$TMPDIR_RUNNER/params.json"
 
+# Resolve SDK path: prefer plugin-local node_modules, fall back to workspace root
+SDK_TESTING=""
+candidate="$PLUGIN_ABS/node_modules/@paperclipai/plugin-sdk/dist/testing.js"
+if [[ -f "$candidate" ]]; then
+  SDK_TESTING="$candidate"
+else
+  # Walk up to find the workspace root's node_modules
+  dir="$PLUGIN_ABS"
+  while [[ "$dir" != "/" ]]; do
+    dir="$(dirname "$dir")"
+    candidate="$dir/node_modules/@paperclipai/plugin-sdk/dist/testing.js"
+    if [[ -f "$candidate" ]]; then
+      SDK_TESTING="$candidate"
+      break
+    fi
+  done
+fi
+if [[ -z "$SDK_TESTING" ]]; then
+  echo "❌ Could not find @paperclipai/plugin-sdk/dist/testing.js — run: npm install (or pnpm install)" >&2; exit 1
+fi
+
 # Write a self-contained ESM runner
 RUNNER="$TMPDIR_RUNNER/runner.mjs"
 cat > "$RUNNER" << RUNNER_EOF
 import { readFileSync } from "node:fs";
-import { createTestHarness } from "$PLUGIN_ABS/node_modules/@paperclipai/plugin-sdk/dist/testing.js";
+import { createTestHarness } from "$SDK_TESTING";
 
 const config  = JSON.parse(readFileSync("$TMPDIR_RUNNER/config.json",  "utf8"));
 const secrets = JSON.parse(readFileSync("$TMPDIR_RUNNER/secrets.json", "utf8"));
