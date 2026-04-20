@@ -465,3 +465,20 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_instanceUrl=https://yourorg.my.salesforce.com \
   ./scripts/provision-plugin.sh <slug> packages/plugin-salesforce
 ```
+
+## Trello (project boards)
+
+**Env vars:** `APIKEYREF`, `APITOKENREF`
+
+**Where to find them:**
+1. Go to <https://trello.com/power-ups/admin> and create a new Power-Up (or use an existing one)
+2. Under **API Key**, copy your **API Key**
+3. Click **Token** next to the API Key to generate a **Token** with read/write access
+4. Store each value as a Paperclip secret
+
+```bash
+PC_PASSWORD=<pw> \
+  APIKEYREF=<trello-api-key> \
+  APITOKENREF=<trello-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-trello
+```
