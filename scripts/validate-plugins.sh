@@ -197,6 +197,41 @@ if bad:
     fail "deploy-config.json has hardcoded secret values — move to customers/<slug>/<plugin>.json"
   fi
 
+  # secretRefs in deploy-config must cover all secret-ref fields in manifest instanceConfigSchema
+  secret_ref_fields=$(python3 -c "
+import re, sys
+src = open(sys.argv[1]).read()
+pat = r'instanceConfigSchema\s*:\s*\{(.+?)\},\s*(?:tools|required)\s*:'
+m = re.search(pat, src, re.DOTALL)
+if m:
+    props = re.findall(r'(\w+)\s*:\s*\{[^{}]*format\s*:\s*[.\"]*secret-ref[.\"]*[^{}]*\}', m.group(1), re.DOTALL)
+    print('\n'.join(props))
+" "$MANIFEST_SRC" 2>/dev/null || true)
+
+  if [[ -n "$secret_ref_fields" ]]; then
+    deploy_refs=$(python3 -c "
+import json
+cfg = json.load(open('$DEPLOY_CONFIG'))
+refs = cfg.get('secretRefs', {})
+for k in refs: print(k)
+" 2>/dev/null || true)
+
+    missing_refs=()
+    while IFS= read -r field; do
+      [[ -z "$field" ]] && continue
+      if ! echo "$deploy_refs" | grep -qx "$field"; then
+        missing_refs+=("$field")
+      fi
+    done <<< "$secret_ref_fields"
+
+    if [[ ${#missing_refs[@]} -gt 0 ]]; then
+      fail "deploy-config.json missing secretRefs for manifest secret-ref fields: ${missing_refs[*]}"
+    else
+      ok "deploy-config.json secretRefs cover all manifest secret-ref fields"
+      PASS=$((PASS+1))
+    fi
+  fi
+
   # configJson should not contain real org IDs / emails (only REPLACE_WITH_ or generic defaults)
   suspicious=$(python3 -c "
 import json, sys, re
