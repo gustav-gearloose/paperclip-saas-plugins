@@ -747,3 +747,46 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_userPrincipalName=<mailbox@company.com> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-outlook
 ```
+
+---
+
+## Microsoft OneDrive (files + SharePoint)
+
+**Env vars:** `CLIENTIDREF`, `CLIENTSECRETREF`, `PLUGIN_CONFIG_tenantId`, `PLUGIN_CONFIG_userPrincipalName`
+
+> Uses the **same Azure AD app** as Teams and Outlook — just add the extra Graph permission below.
+
+**Where to find them:**
+1. Go to [Azure Portal](https://portal.azure.com) → Azure Active Directory → App registrations → select your app
+2. **Required additional API permission** (Application): `Files.Read.All` (add `Files.ReadWrite.All` if upload/delete needed)
+3. Click **Grant admin consent** for your tenant
+4. **userPrincipalName**: the OneDrive account to access by default, e.g. `user@company.com` — each tool call can override this
+
+```bash
+PC_PASSWORD=<pw> \
+  CLIENTIDREF=<azure-client-id> \
+  CLIENTSECRETREF=<azure-client-secret> \
+  PLUGIN_CONFIG_tenantId=<azure-tenant-id> \
+  PLUGIN_CONFIG_userPrincipalName=<user@company.com> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-onedrive
+```
+
+---
+
+## Google Drive
+
+**Env vars:** `SERVICEACCOUNTJSONREF`, `PLUGIN_CONFIG_delegatedUser`
+
+**Where to find them:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com) → APIs & Services → Enable **Google Drive API**
+2. IAM & Admin → Service Accounts → Create a service account → Create key (JSON)
+3. Store the full JSON key file content as a Paperclip secret → copy its UUID as `SERVICEACCOUNTJSONREF`
+4. **Domain-wide delegation** (Google Workspace only): Admin Console → Security → API Controls → Domain-wide delegation → Add your service account Client ID with scope `https://www.googleapis.com/auth/drive`
+5. **delegatedUser**: email of the Workspace user whose Drive to access (leave empty to act as the service account itself — only sees files explicitly shared with the service account)
+
+```bash
+PC_PASSWORD=<pw> \
+  SERVICEACCOUNTJSONREF=<secret-uuid> \
+  PLUGIN_CONFIG_delegatedUser=<user@company.com> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-google-drive
+```

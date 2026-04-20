@@ -1,0 +1,16 @@
+{
+  "configJson": {
+    "tenantId": "",
+    "userPrincipalName": ""
+  },
+  "secretRefs": {
+    "clientIdRef": {
+      "name": "onedrive-client-id",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    },
+    "clientSecretRef": {
+      "name": "onedrive-client-secret",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    }
+  }
+}

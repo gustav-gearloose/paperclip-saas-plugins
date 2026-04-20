@@ -1,0 +1,11 @@
+{
+  "configJson": {
+    "delegatedUser": ""
+  },
+  "secretRefs": {
+    "serviceAccountJsonRef": {
+      "name": "google-drive-service-account-json",
+      "uuid": "REPLACE_WITH_SECRET_UUID"
+    }
+  }
+}
