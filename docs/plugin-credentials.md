@@ -350,3 +350,20 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_domain=<freshdesk-subdomain> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-freshdesk
 ```
+
+---
+
+## Stripe
+
+**Env vars:** `SECRETKEYREF`
+
+**Where to find it:**
+1. Log in to [dashboard.stripe.com](https://dashboard.stripe.com) → **Developers → API keys**
+2. Use your **Secret key** (`sk_live_...` for production, `sk_test_...` for testing)
+3. Never use the Publishable key here — only the Secret key
+
+```bash
+PC_PASSWORD=<pw> \
+  SECRETKEYREF=<stripe-secret-key> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-stripe
+```

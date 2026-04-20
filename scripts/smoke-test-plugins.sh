@@ -125,6 +125,7 @@ SMOKE_TOOLS=(
   "jira|jira_list_projects|{}"
   "github|github_list_repos|{}"
   "freshdesk|freshdesk_list_agents|{}"
+  "stripe|stripe_list_products|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

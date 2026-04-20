@@ -1,0 +1,8 @@
+{
+  "configJson": {
+
+  },
+  "secretRefs": {
+    "secretKeyRef": { "uuid": "REPLACE_WITH_SECRET_UUID" }
+  }
+}
