@@ -65,7 +65,8 @@ require_env
 
 info "Building $PLUGIN_DIR..."
 cd "$PLUGIN_DIR"
-npm run build 2>&1 | tail -5
+build_out=$(npm run build 2>&1) || { echo "$build_out"; die "Build failed for $(basename "$PLUGIN_DIR")"; }
+echo "$build_out" | tail -5
 cd - > /dev/null
 
 # ── step 2: read package metadata ─────────────────────────────────────────────
@@ -127,7 +128,8 @@ ssh "$SSH_HOST" "$DOCKER cp $REMOTE_STAGING/ $CONTAINER:$CONTAINER_PATH"
 
 info "Installing npm dependencies inside container..."
 ssh "$SSH_HOST" "$DOCKER exec $CONTAINER bash -c \
-  'cd $CONTAINER_PATH && npm install --ignore-scripts 2>&1 | tail -3'"
+  'set -e; cd $CONTAINER_PATH && npm install --ignore-scripts'" \
+  || die "npm install inside container failed"
 
 # Symlink SDK (must be AFTER npm install)
 ssh "$SSH_HOST" "$DOCKER exec $CONTAINER bash -c \
