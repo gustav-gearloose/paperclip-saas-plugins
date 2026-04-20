@@ -233,6 +233,34 @@ Auth uses two tokens: an **App Secret Token** (your developer credential, same f
 
 ## Recurring Maintenance
 
-- After Paperclip image upgrade: re-apply plugin-loader patch
-- After NUC restart: settings.json re-applied by @reboot cron (set up by wire script)
-- Secrets: stored as Paperclip secrets, referenced by UUID in plugin config
+### After a Paperclip container image rebuild (upgrade)
+
+Run the one-command recovery script:
+
+```bash
+PC_PASSWORD=<pw> ./scripts/post-upgrade.sh <customer-slug>
+```
+
+This does the full sequence automatically:
+1. Re-applies compiled JS patches (`patch-paperclip-container.sh`)
+2. Restarts the container
+3. Polls until Paperclip is healthy (up to 60s)
+4. Redeploys all plugins that have a `customers/<slug>/plugin-*.json` config
+5. Runs `smoke-test-plugins.sh` to verify tools are callable
+
+If you only need to reapply the patches without a full redeploy:
+
+```bash
+./scripts/patch-paperclip-container.sh <customer-slug>
+ssh <ssh-host> "DOCKER_HOST=unix:///var/run/docker.sock docker restart <container>"
+```
+
+### After NUC restart (not a container rebuild)
+
+The container restarts automatically via Docker's restart policy. Patches survive a container restart (they're in the container filesystem). Only a *container image rebuild* (Paperclip upgrade) loses the patches.
+
+MCP config at `/paperclip/mcp-proxy-config.json` persists (Docker volume) — no action needed.
+
+### Secrets
+
+Stored as Paperclip secrets, referenced by UUID in `customers/<slug>/plugin-*.json`. Never stored in `deploy-config.json`.
