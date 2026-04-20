@@ -424,3 +424,20 @@ PC_PASSWORD=<pw> \
   APITOKENREF=<monday-api-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-monday
 ```
+
+---
+
+## Asana
+
+**Env vars:** `ACCESSTOKENREF`
+
+**Where to find it:**
+1. Log in to [app.asana.com](https://app.asana.com) → click your avatar (top-right) → **My Settings**
+2. Go to the **Apps** tab → scroll to **Manage Developer Apps**
+3. Click **New Access Token** → give it a name → copy the token
+
+```bash
+PC_PASSWORD=<pw> \
+  ACCESSTOKENREF=<asana-personal-access-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-asana
+```
