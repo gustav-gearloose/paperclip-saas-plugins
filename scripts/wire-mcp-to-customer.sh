@@ -158,8 +158,15 @@ proxy_out=$(ssh "$SSH_HOST" "
 if echo "$proxy_out" | grep -qi "Missing required env\|Cannot find module\|SyntaxError\|Error:"; then
   echo "$proxy_out"
   die "Proxy failed to start — check output above"
+elif echo "$proxy_out" | grep -qi "Loaded.*plugin tools\|plugin proxy running"; then
+  echo "  ✅ Proxy started and loaded tools:"
+  echo "$proxy_out" | grep -i "Loaded\|plugin proxy running\|WARNING" | sed 's/^/     /'
+elif echo "$proxy_out" | grep -qi "WARNING.*0 tools\|returned 0 tools"; then
+  echo "  ⚠️  Proxy started but loaded 0 tools — container patches may not be applied"
+  echo "$proxy_out" | tail -6 | sed 's/^/     /'
+  info "Run: ./scripts/patch-paperclip-container.sh $CUSTOMER"
 else
-  echo "  proxy stderr: ${proxy_out:-<no output — likely started OK>}"
+  echo "  proxy output: ${proxy_out:-<no output — likely started OK, timeout killed it>}"
 fi
 
 # ── step 6: patch agent ────────────────────────────────────────────────────────
