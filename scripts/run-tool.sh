@@ -23,8 +23,8 @@
 
 set -euo pipefail
 
-PLUGIN_DIR="${1:?Usage: $0 <plugin-package-dir> <tool-name> [json-params]}"
-TOOL_NAME="${2:?Tool name required}"
+PLUGIN_DIR="${1:?Usage: $0 <plugin-package-dir> <tool-name|--list> [json-params]}"
+TOOL_NAME="${2:-}"
 if [[ $# -ge 3 ]]; then
   TOOL_PARAMS="$3"
 else
@@ -34,6 +34,21 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PLUGIN_ABS="$(cd "$REPO_ROOT/$PLUGIN_DIR" 2>/dev/null || cd "$PLUGIN_DIR" && pwd)"
+
+# --list: print tool names from the manifest
+if [[ "$TOOL_NAME" == "--list" || -z "$TOOL_NAME" ]]; then
+  if [[ ! -f "$PLUGIN_ABS/dist/manifest.js" ]]; then
+    echo "❌ dist/manifest.js not found — run: npm run build" >&2; exit 1
+  fi
+  node --input-type=module <<EOF
+const m = await import("$PLUGIN_ABS/dist/manifest.js");
+const manifest = m.default ?? m.manifest;
+console.log("Plugin: " + manifest.displayName + " (" + manifest.id + ")");
+console.log("Tools:");
+(manifest.tools ?? []).forEach(t => console.log("  " + t.name + " — " + t.description));
+EOF
+  exit 0
+fi
 
 # Require a built dist/
 if [[ ! -f "$PLUGIN_ABS/dist/worker.js" || ! -f "$PLUGIN_ABS/dist/manifest.js" ]]; then
