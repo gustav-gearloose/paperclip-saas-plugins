@@ -606,9 +606,13 @@ PC_PASSWORD=<pw> APITOKENREF=<monday-api-token> \
 PC_PASSWORD=<pw> ACCESSTOKENREF=<asana-personal-access-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-asana
 
-# Salesforce (1 secret + 1 configJson field)
+# Salesforce (4 secrets + 1 configJson field)
+# Obtain via Salesforce Connected App OAuth2 flow
 PC_PASSWORD=<pw> \
   ACCESSTOKENREF=<salesforce-oauth-access-token> \
+  REFRESHTOKENREF=<salesforce-oauth-refresh-token> \
+  CLIENTIDREF=<salesforce-connected-app-client-id> \
+  CLIENTSECRETREF=<salesforce-connected-app-client-secret> \
   PLUGIN_CONFIG_instanceUrl=https://your-org.my.salesforce.com \
   ./scripts/provision-plugin.sh <slug> packages/plugin-salesforce
 
@@ -717,6 +721,14 @@ PC_PASSWORD=<pw> SERVERTOKENREF=<postmark-server-api-token> \
 | Twilio | `accountSidRef` | `ACCOUNTSIDREF` |
 | Twilio | `authTokenRef` | `AUTHTOKENREF` |
 | Trello | `apiKeyRef` | `APIKEYREF` |
+| Salesforce | `accessTokenRef` | `ACCESSTOKENREF` |
+| Salesforce | `refreshTokenRef` | `REFRESHTOKENREF` |
+| Salesforce | `clientIdRef` | `CLIENTIDREF` |
+| Salesforce | `clientSecretRef` | `CLIENTSECRETREF` |
+| Harvest | `accessTokenRef` | `ACCESSTOKENREF` |
+| Mailchimp | `apiKeyRef` | `APIKEYREF` |
+| Klaviyo | `apiKeyRef` | `APIKEYREF` |
+| Zoho CRM | `accessTokenRef` | `ACCESSTOKENREF` |
 | Postmark | `serverTokenRef` | `SERVERTOKENREF` |
 
 After this step, `customers/<slug>/plugin-*.json` files exist with resolved secret UUIDs. Commit them.
