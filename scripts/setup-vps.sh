@@ -101,15 +101,17 @@ else
   ok "pnpm $(r 'pnpm --version') installed"
 fi
 
-# PostgreSQL 16
+# PostgreSQL — prefer 16, fall back to whatever is available
 PG_INSTALLED=$(r "command -v psql >/dev/null 2>&1 && echo yes || echo no")
 if [[ "$PG_INSTALLED" == "yes" ]]; then
-  ok "PostgreSQL already installed"
+  ok "PostgreSQL already installed ($(r 'psql --version 2>/dev/null | head -1'))"
 else
-  info "Installing PostgreSQL 16..."
-  r "sudo apt-get install -y postgresql-16"
+  info "Installing PostgreSQL..."
+  # Try pg 16 first; fall back to distro default
+  PG_PKG=$(r "apt-cache show postgresql-16 >/dev/null 2>&1 && echo postgresql-16 || echo postgresql")
+  r "sudo apt-get install -y $PG_PKG"
   r "sudo systemctl enable postgresql --now"
-  ok "PostgreSQL installed"
+  ok "PostgreSQL installed ($PG_PKG)"
 fi
 
 # Caddy
@@ -137,6 +139,8 @@ else
   PG_PASSWORD=$(openssl rand -hex 24)
   r "sudo -u postgres psql -c \"CREATE USER paperclip WITH PASSWORD '$PG_PASSWORD';\" 2>/dev/null || true"
   r "sudo -u postgres psql -c \"CREATE DATABASE paperclip OWNER paperclip;\" 2>/dev/null || true"
+  # pgcrypto needed for gen_random_uuid() on PostgreSQL < 13
+  r "sudo -u postgres psql -d paperclip -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto;' 2>/dev/null || true"
   # Store password for use in systemd unit
   r "echo 'PG_PASSWORD=$PG_PASSWORD' | sudo tee $PAPERCLIP_DATA/.pg_password > /dev/null 2>/dev/null || \
      (sudo mkdir -p $PAPERCLIP_DATA && echo 'PG_PASSWORD=$PG_PASSWORD' | sudo tee $PAPERCLIP_DATA/.pg_password > /dev/null)"
