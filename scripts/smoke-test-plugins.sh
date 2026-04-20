@@ -132,6 +132,7 @@ SMOKE_TOOLS=(
   "asana|asana_list_workspaces|{}"
   "salesforce|salesforce_list_contacts|{}"
   "trello|trello_list_boards|{}"
+  "clickup|clickup_list_workspaces|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

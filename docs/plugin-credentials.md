@@ -482,3 +482,18 @@ PC_PASSWORD=<pw> \
   APITOKENREF=<trello-api-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-trello
 ```
+
+## ClickUp (project management)
+
+**Env vars:** `APITOKENREF`
+
+**Where to find them:**
+1. Log in to ClickUp → click your avatar (bottom-left) → **Apps**
+2. Under **API Token**, click **Generate** (or copy the existing token)
+3. Store the token as a Paperclip secret
+
+```bash
+PC_PASSWORD=<pw> \
+  APITOKENREF=<clickup-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-clickup
+```
