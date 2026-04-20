@@ -549,3 +549,18 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_accountId=<harvest-account-id> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-harvest
 ```
+
+## Typeform (surveys)
+
+**Env vars:** `APITOKENREF`
+
+**Where to find them:**
+1. Log in to Typeform → click your avatar (top-right) → **Settings → Personal tokens**
+2. Click **Generate a new token**, give it a name, and copy the token
+3. Store it as a Paperclip secret
+
+```bash
+PC_PASSWORD=<pw> \
+  APITOKENREF=<typeform-personal-access-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-typeform
+```

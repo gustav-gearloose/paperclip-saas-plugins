@@ -136,6 +136,7 @@ SMOKE_TOOLS=(
   "todoist|todoist_list_projects|{}"
   "airtable|airtable_list_bases|{}"
   "harvest|harvest_get_me|{}"
+  "typeform|typeform_list_forms|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
