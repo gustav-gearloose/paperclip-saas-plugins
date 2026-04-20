@@ -133,6 +133,7 @@ SMOKE_TOOLS=(
   "salesforce|salesforce_list_contacts|{}"
   "trello|trello_list_boards|{}"
   "clickup|clickup_list_workspaces|{}"
+  "todoist|todoist_list_projects|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

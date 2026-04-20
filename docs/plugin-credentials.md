@@ -497,3 +497,18 @@ PC_PASSWORD=<pw> \
   APITOKENREF=<clickup-api-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-clickup
 ```
+
+## Todoist (task management)
+
+**Env vars:** `APITOKENREF`
+
+**Where to find them:**
+1. Log in to Todoist → click your avatar (top-right) → **Settings → Integrations → Developer**
+2. Copy your **API token**
+3. Store it as a Paperclip secret
+
+```bash
+PC_PASSWORD=<pw> \
+  APITOKENREF=<todoist-api-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-todoist
+```

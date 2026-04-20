@@ -100,7 +100,8 @@ plugin_dir() {
     23) echo "packages/plugin-salesforce" ;;
     24) echo "packages/plugin-trello" ;;
     25) echo "packages/plugin-clickup" ;;
-    26) echo "__custom__" ;;
+    26) echo "packages/plugin-todoist" ;;
+    27) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -132,7 +133,8 @@ plugin_env_vars() {
     23) printf 'ACCESSTOKENREF\nREFRESHTOKENREF\nCLIENTIDREF\nCLIENTSECRETREF\nPLUGIN_CONFIG_instanceUrl' ;;
     24) printf 'APIKEYREF\nAPITOKENREF' ;;
     25) printf 'APITOKENREF' ;;
-    26) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    26) printf 'APITOKENREF' ;;
+    27) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -167,14 +169,15 @@ echo "   22) Asana (projects, tasks, teams)"
 echo "   23) Salesforce (contacts, accounts, opportunities, leads)"
 echo "   24) Trello (boards, lists, cards, members, search)"
 echo "   25) ClickUp (workspaces, spaces, lists, tasks, search)"
-echo "   26) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   26) Todoist (projects, tasks, labels, comments)"
+echo "   27) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to add? (comma-separated numbers, e.g. 1,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25)  # 26 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26)  # 27 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi
