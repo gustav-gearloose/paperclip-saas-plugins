@@ -332,3 +332,21 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_owner=<github-username-or-org> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-github
 ```
+
+---
+
+## Freshdesk
+
+**Env vars:** `APIKEYREF`, `PLUGIN_CONFIG_domain`
+
+**Where to find them:**
+1. Log in to Freshdesk → click your avatar (top right) → **Profile Settings**
+2. Your **API Key** is shown in the right sidebar under "Your API Key"
+3. Your **domain** is the subdomain from your Freshdesk URL: `mycompany.freshdesk.com` → `mycompany`
+
+```bash
+PC_PASSWORD=<pw> \
+  APIKEYREF=<freshdesk-api-key> \
+  PLUGIN_CONFIG_domain=<freshdesk-subdomain> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-freshdesk
+```

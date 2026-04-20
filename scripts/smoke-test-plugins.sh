@@ -124,6 +124,7 @@ SMOKE_TOOLS=(
   "intercom|intercom_list_admins|{}"
   "jira|jira_list_projects|{}"
   "github|github_list_repos|{}"
+  "freshdesk|freshdesk_list_agents|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
