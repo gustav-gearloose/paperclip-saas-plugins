@@ -181,6 +181,7 @@ SMOKE_TOOLS=(
   "visma|visma_list_fiscal_years|{}"
   "quickbooks|quickbooks_list_accounts|{}"
   "freshbooks|freshbooks_list_clients|{}"
+  "sage|sage_list_sales_invoices|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

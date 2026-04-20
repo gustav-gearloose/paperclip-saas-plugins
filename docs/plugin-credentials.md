@@ -1058,3 +1058,26 @@ CLIENTIDREF=<secret-uuid> \
   REFRESHTOKENREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-freshbooks
 ```
+
+## 55. Sage Business Cloud
+
+**Where to get credentials:**
+1. Go to [developer.sage.com](https://developer.sage.com) → Create an app
+2. Copy the **Client ID** and **Client Secret**
+3. Complete the OAuth2 authorization code flow (scopes: `full_access`) — redirect URI must be registered in the developer portal
+4. Exchange the auth code for tokens; store the **refresh token** as a Paperclip secret
+5. Note: Refresh tokens rotate on each use — the plugin stores the latest automatically
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `CLIENTIDREF` | UUID of the Paperclip secret holding the Sage OAuth2 client ID |
+| `CLIENTSECRETREF` | UUID of the Paperclip secret holding the Sage OAuth2 client secret |
+| `REFRESHTOKENREF` | UUID of the Paperclip secret holding the Sage OAuth2 refresh token |
+
+```bash
+CLIENTIDREF=<secret-uuid> \
+  CLIENTSECRETREF=<secret-uuid> \
+  REFRESHTOKENREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-sage
+```
