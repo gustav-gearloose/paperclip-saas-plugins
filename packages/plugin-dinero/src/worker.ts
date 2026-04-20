@@ -138,28 +138,54 @@ const plugin = definePlugin({
     );
 
     ctx.tools.register(
-      "dinero_list_journal_entries",
+      "dinero_list_entries",
       {
-        displayName: "List Journal Entries",
-        description: "Search journal entries (bogføringer) with optional date and account filters.",
+        displayName: "List Ledger Entries",
+        description: "List ledger entries (bogføringsposter) for a date range.",
         parametersSchema: {
           type: "object",
           properties: {
-            date_from: { type: "string", description: "Start date (YYYY-MM-DD)." },
-            date_to: { type: "string", description: "End date (YYYY-MM-DD)." },
-            account_number: { type: "string", description: "Filter by account number." },
-            page_size: { type: "integer", description: "Results per page (max 1000)." },
+            from_date: { type: "string", description: "Start date (YYYY-MM-DD)." },
+            to_date: { type: "string", description: "End date (YYYY-MM-DD)." },
+            include_primo: { type: "boolean", description: "Include primo entries (default true)." },
           },
         },
       },
       async (params): Promise<ToolResult> => {
         try {
           const p = params as Record<string, unknown>;
-          const data = await client.listJournalEntries({
-            dateFrom: p.date_from as string | undefined,
-            dateTo: p.date_to as string | undefined,
-            accountNumber: p.account_number as string | undefined,
-            pageSize: p.page_size as number | undefined,
+          const data = await client.listEntries({
+            fromDate: p.from_date as string | undefined,
+            toDate: p.to_date as string | undefined,
+            includePrimo: p.include_primo as boolean | undefined,
+          });
+          return { content: JSON.stringify(data, null, 2) };
+        } catch (err) { return errResult(err); }
+      }
+    );
+
+    ctx.tools.register(
+      "dinero_list_entry_changes",
+      {
+        displayName: "List Entry Changes",
+        description: "List ledger entries changed since a given timestamp. Useful for syncing.",
+        parametersSchema: {
+          type: "object",
+          required: ["changes_from"],
+          properties: {
+            changes_from: { type: "string", description: "ISO datetime — return entries changed after this (e.g. '2025-01-01T00:00:00')." },
+            changes_to: { type: "string", description: "ISO datetime upper bound (optional)." },
+            include_primo: { type: "boolean", description: "Include primo entries (default true)." },
+          },
+        },
+      },
+      async (params): Promise<ToolResult> => {
+        try {
+          const p = params as Record<string, unknown>;
+          const data = await client.listEntryChanges({
+            changesFrom: p.changes_from as string,
+            changesTo: p.changes_to as string | undefined,
+            includePrimo: p.include_primo as boolean | undefined,
           });
           return { content: JSON.stringify(data, null, 2) };
         } catch (err) { return errResult(err); }
@@ -332,7 +358,7 @@ const plugin = definePlugin({
       }
     );
 
-    ctx.logger.info("Dinero plugin ready — 10 tools registered");
+    ctx.logger.info("Dinero plugin ready — 11 tools registered");
   },
 
   async onHealth() {

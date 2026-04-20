@@ -99,16 +99,29 @@ const manifest: PaperclipPluginManifestV1 = {
       },
     },
     {
-      name: "dinero_list_journal_entries",
-      displayName: "List Journal Entries",
-      description: "Search journal entries (bogføringer) with optional date and account filters.",
+      name: "dinero_list_entries",
+      displayName: "List Ledger Entries",
+      description: "List ledger entries (bogføringsposter) for a date range.",
       parametersSchema: {
         type: "object",
         properties: {
-          date_from: { type: "string", description: "Start date (YYYY-MM-DD)." },
-          date_to: { type: "string", description: "End date (YYYY-MM-DD)." },
-          account_number: { type: "string", description: "Filter by account number." },
-          page_size: { type: "integer", description: "Results per page (max 1000)." },
+          from_date: { type: "string", description: "Start date (YYYY-MM-DD)." },
+          to_date: { type: "string", description: "End date (YYYY-MM-DD)." },
+          include_primo: { type: "boolean", description: "Include primo entries (default true)." },
+        },
+      },
+    },
+    {
+      name: "dinero_list_entry_changes",
+      displayName: "List Entry Changes",
+      description: "List ledger entries changed since a given timestamp. Useful for syncing.",
+      parametersSchema: {
+        type: "object",
+        required: ["changes_from"],
+        properties: {
+          changes_from: { type: "string", description: "ISO datetime — return entries changed after this (e.g. '2025-01-01T00:00:00')." },
+          changes_to: { type: "string", description: "ISO datetime upper bound (optional)." },
+          include_primo: { type: "boolean", description: "Include primo entries (default true)." },
         },
       },
     },

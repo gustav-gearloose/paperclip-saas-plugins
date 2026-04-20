@@ -1,4 +1,5 @@
-const DINERO_API_BASE = "https://api.dinero.dk/v1";
+const DINERO_API_BASE_V1 = "https://api.dinero.dk/v1";
+const DINERO_API_BASE_V2 = "https://api.dinero.dk/v2";
 
 export interface DineroConfig {
   clientId: string;
@@ -38,9 +39,10 @@ export class DineroClient {
     this.tokenExpiresAt = Date.now() + expiresIn * 1000;
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(path: string, options: RequestInit = {}, apiVersion: "v1" | "v2" = "v1"): Promise<T> {
     await this.ensureToken();
-    const url = `${DINERO_API_BASE}/${this.config.orgId}${path}`;
+    const base = apiVersion === "v2" ? DINERO_API_BASE_V2 : DINERO_API_BASE_V1;
+    const url = `${base}/${this.config.orgId}${path}`;
     const res = await fetch(url, {
       ...options,
       headers: {
@@ -74,11 +76,11 @@ export class DineroClient {
     }
     qs.set("fields", "Guid,Number,ContactName,TotalExclVat,TotalInclVat,Status,Date,PaymentDate,Currency");
     qs.set("pageSize", String(params.pageSize ?? 100));
-    return this.request(`/sales/invoices?${qs}`);
+    return this.request(`/invoices?${qs}`);
   }
 
   async getInvoice(guid: string): Promise<unknown> {
-    return this.request(`/sales/invoices/${guid}`);
+    return this.request(`/invoices/${guid}`);
   }
 
   // ── Contacts ──────────────────────────────────────────────────────────────
@@ -93,7 +95,7 @@ export class DineroClient {
     if (params.query) qs.set("queryFilter", params.query);
     qs.set("fields", "ExternalReference,Name,Email,Phone,Address,City,ZipCode,CountryKey,VatNumber,IsPerson,IsCustomer,IsSupplier");
     qs.set("pageSize", String(params.pageSize ?? 200));
-    return this.request(`/contacts?${qs}`);
+    return this.request(`/contacts?${qs}`, {}, "v2");
   }
 
   // ── Accounts / Balance ────────────────────────────────────────────────────
@@ -114,23 +116,35 @@ export class DineroClient {
     return this.request(`/keyfigures?${qs}`);
   }
 
-  // ── Journal Entries ───────────────────────────────────────────────────────
+  // ── Ledger Entries ────────────────────────────────────────────────────────
+  // Uses /entries (date range) or /entries/changes (changesSince pattern)
 
-  async listJournalEntries(params: {
-    dateFrom?: string;
-    dateTo?: string;
-    accountNumber?: string;
-    pageSize?: number;
+  async listEntries(params: {
+    fromDate?: string;
+    toDate?: string;
+    includePrimo?: boolean;
   } = {}): Promise<unknown> {
     const qs = new URLSearchParams();
-    if (params.dateFrom) qs.set("dateFrom", params.dateFrom);
-    if (params.dateTo) qs.set("dateTo", params.dateTo);
-    if (params.accountNumber) qs.set("accountNumber", params.accountNumber);
-    qs.set("pageSize", String(Math.min(params.pageSize ?? 100, 1000)));
-    return this.request(`/vouchers?${qs}`);
+    if (params.fromDate) qs.set("fromDate", params.fromDate);
+    if (params.toDate) qs.set("toDate", params.toDate);
+    if (params.includePrimo != null) qs.set("includePrimo", String(params.includePrimo));
+    return this.request(`/entries?${qs}`);
+  }
+
+  async listEntryChanges(params: {
+    changesFrom: string;
+    changesTo?: string;
+    includePrimo?: boolean;
+  }): Promise<unknown> {
+    const qs = new URLSearchParams();
+    qs.set("changesFrom", params.changesFrom);
+    if (params.changesTo) qs.set("changesTo", params.changesTo);
+    if (params.includePrimo != null) qs.set("includePrimo", String(params.includePrimo));
+    return this.request(`/entries/changes?${qs}`);
   }
 
   // ── VAT ───────────────────────────────────────────────────────────────────
+  // /vatreport is not in the official OpenAPI spec; best-effort kept as-is.
 
   async getVatReport(params: {
     year?: number;
@@ -192,7 +206,7 @@ export class DineroClient {
         BaseAmountExclVat: l.baseAmountExclVat,
       })),
     };
-    return this.request("/sales/invoices", {
+    return this.request("/invoices", {
       method: "POST",
       body: JSON.stringify(body),
     });
