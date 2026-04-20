@@ -123,6 +123,7 @@ SMOKE_TOOLS=(
   "pipedrive|pipedrive_list_pipelines|{}"
   "intercom|intercom_list_admins|{}"
   "jira|jira_list_projects|{}"
+  "github|github_list_repos|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

@@ -311,3 +311,24 @@ PC_PASSWORD=<pw> \
   PLUGIN_CONFIG_domain=<your-atlassian-subdomain> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-jira
 ```
+
+---
+
+## GitHub
+
+**Env vars:** `TOKENREF`, `PLUGIN_CONFIG_owner` (optional)
+
+**Where to find them:**
+1. Log in to GitHub → go to **Settings → Developer settings → Personal access tokens**
+2. Click **Generate new token (classic)** or use **Fine-grained tokens** (recommended)
+   - For classic: select scopes `repo`, `read:org` (adjust as needed)
+   - For fine-grained: choose specific repos and grant **Contents**, **Issues**, **Pull requests**, **Metadata** read/write as needed
+3. Copy the token
+4. **Default owner** is optional — set to your GitHub username or org name to avoid having to pass `owner` in every tool call
+
+```bash
+PC_PASSWORD=<pw> \
+  TOKENREF=<github-personal-access-token> \
+  PLUGIN_CONFIG_owner=<github-username-or-org> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-github
+```
