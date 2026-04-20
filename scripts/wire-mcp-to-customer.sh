@@ -87,28 +87,25 @@ ssh "$SSH_HOST" "echo $_AUTH_B64 | base64 -d | curl -s -X POST '$PC_HOST/api/aut
   -c /tmp/pc_wire_cookies.txt \
   --data-binary @- > /dev/null"
 
+ALL_AGENT_IDS=()
 if [[ -z "$AGENT_ID" ]]; then
-  info "No agent-id given — looking up agents..."
-  AGENT_ID=$(ssh "$SSH_HOST" "curl -s '$PC_HOST/api/agents' \
+  info "No agent-id given — patching ALL agents..."
+  mapfile -t ALL_AGENT_IDS < <(ssh "$SSH_HOST" "curl -s '$PC_HOST/api/companies/$PC_COMPANY_ID/agents' \
     -b /tmp/pc_wire_cookies.txt \
     -H 'Origin: $PC_ORIGIN'" \
     | python3 -c "
 import sys, json
 agents = json.load(sys.stdin)
-if not agents:
+if not isinstance(agents, list) or not agents:
     print('NO_AGENTS')
 else:
-    # Prefer an agent with 'cfo' or 'assistant' in the name
     for a in agents:
-        name = (a.get('name') or '').lower()
-        if 'cfo' in name or 'assistant' in name:
-            print(a['id'])
-            break
-    else:
-        print(agents[0]['id'])
+        print(a['id'])
 ")
-  [[ "$AGENT_ID" == "NO_AGENTS" ]] && die "No agents found on this instance. Create one in the Paperclip UI first."
-  info "Using agent: $AGENT_ID"
+  [[ "${ALL_AGENT_IDS[0]:-}" == "NO_AGENTS" ]] && die "No agents found on this instance. Create one in the Paperclip UI first."
+  info "Found ${#ALL_AGENT_IDS[@]} agents to patch"
+else
+  ALL_AGENT_IDS=("$AGENT_ID")
 fi
 
 # ── step 4: write MCP config to /paperclip volume ────────────────────────────
@@ -136,7 +133,7 @@ cfg = {
     }
 }
 print(json.dumps(cfg, indent=2))
-" "$PROXY_PATH" "$PC_HOST_INTERNAL" "$PC_EMAIL" "$PC_PASSWORD" "$PC_COMPANY_ID" "$AGENT_ID" "$PC_ORIGIN")
+" "$PROXY_PATH" "$PC_HOST_INTERNAL" "$PC_EMAIL" "$PC_PASSWORD" "$PC_COMPANY_ID" "${ALL_AGENT_IDS[0]}" "$PC_ORIGIN")
 printf '%s' "$MCP_JSON" | ssh "$SSH_HOST" "$DOCKER exec -i $CONTAINER tee $MCP_CONFIG_PATH" > /dev/null
 info "Written: $MCP_CONFIG_PATH"
 
@@ -175,28 +172,31 @@ else
   echo "  proxy output: ${proxy_out:-<no output — likely started OK, timeout killed it>}"
 fi
 
-# ── step 6: patch agent ────────────────────────────────────────────────────────
+# ── step 6: patch agents ──────────────────────────────────────────────────────
 
-info "Patching agent $AGENT_ID with extraArgs..."
 _PATCH_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'adapterConfig':{'extraArgs':['--settings',sys.argv[1]]}}).encode()).decode())" "$MCP_CONFIG_PATH")
-PATCH_RESULT=$(ssh "$SSH_HOST" "echo $_PATCH_B64 | base64 -d | curl -s -X PATCH '$PC_HOST/api/agents/$AGENT_ID' \
-  -b /tmp/pc_wire_cookies.txt \
-  -H 'Content-Type: application/json' \
-  -H 'Origin: $PC_ORIGIN' \
-  --data-binary @-")
-
-echo "$PATCH_RESULT" | python3 -c "
+PATCHED=()
+for aid in "${ALL_AGENT_IDS[@]}"; do
+  info "Patching agent $aid with extraArgs..."
+  PATCH_RESULT=$(ssh "$SSH_HOST" "echo $_PATCH_B64 | base64 -d | curl -s -X PATCH '$PC_HOST/api/agents/$aid' \
+    -b /tmp/pc_wire_cookies.txt \
+    -H 'Content-Type: application/json' \
+    -H 'Origin: $PC_ORIGIN' \
+    --data-binary @-")
+  echo "$PATCH_RESULT" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 cfg = d.get('adapterConfig', {})
 extra = cfg.get('extraArgs', 'NOT SET')
 print(f'  extraArgs = {extra}')
 " 2>/dev/null || echo "  raw: $PATCH_RESULT"
+  PATCHED+=("$aid")
+done
 
 # ── done ─────────────────────────────────────────────────────────────────────
 
 echo ""
-echo "✅ MCP proxy wired to agent $AGENT_ID"
+echo "✅ MCP proxy wired to ${#PATCHED[@]} agent(s)"
 echo "   Instance: $PC_HOST"
 echo "   Config:   $MCP_CONFIG_PATH"
 echo ""
