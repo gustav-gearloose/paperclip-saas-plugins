@@ -7,12 +7,15 @@
  * Paperclip plugin tool execute API.
  *
  * Required env vars:
- *   PC_HOST        e.g. http://localhost:3100
+ *   PC_HOST        e.g. http://localhost:3100  (internal connection URL)
  *   PC_EMAIL       Paperclip login email
  *   PC_PASSWORD    Paperclip login password
  *   PC_COMPANY_ID  Paperclip company UUID
  *
  * Optional:
+ *   PC_ORIGIN      Public URL to send as Origin header (defaults to PC_HOST).
+ *                  Set this when PC_HOST is localhost but Paperclip's CSRF check
+ *                  expects the public HTTPS URL, e.g. https://paperclip.acme.com
  *   PC_AGENT_ID    Agent UUID for runContext (defaults to "mcp-proxy")
  *   PC_PROJECT_ID  Project UUID for runContext
  */
@@ -31,6 +34,9 @@ const PC_PASSWORD = process.env.PC_PASSWORD ?? "";
 const PC_COMPANY_ID = process.env.PC_COMPANY_ID ?? "";
 const PC_AGENT_ID = process.env.PC_AGENT_ID ?? "mcp-proxy";
 const PC_PROJECT_ID = process.env.PC_PROJECT_ID ?? "";
+// PC_ORIGIN defaults to PC_HOST. Override when proxy connects via localhost but
+// Paperclip's CSRF middleware validates Origin against the public HTTPS URL.
+const PC_ORIGIN = process.env.PC_ORIGIN || PC_HOST;
 
 if (!PC_HOST || !PC_EMAIL || !PC_PASSWORD || !PC_COMPANY_ID) {
   process.stderr.write(
@@ -54,8 +60,8 @@ async function authenticate(): Promise<void> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Origin: PC_HOST,
-      Referer: `${PC_HOST}/`,
+      Origin: PC_ORIGIN,
+      Referer: `${PC_ORIGIN}/`,
     },
     body: JSON.stringify({ email: PC_EMAIL, password: PC_PASSWORD }),
   });
@@ -90,8 +96,8 @@ async function pcFetch(path: string, init?: RequestInit): Promise<unknown> {
     ...init,
     headers: {
       Cookie: sessionCookie,
-      Origin: PC_HOST,
-      Referer: `${PC_HOST}/`,
+      Origin: PC_ORIGIN,
+      Referer: `${PC_ORIGIN}/`,
       ...(init?.headers as Record<string, string> | undefined),
     },
   });

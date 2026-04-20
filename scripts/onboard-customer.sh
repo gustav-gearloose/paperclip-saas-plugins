@@ -71,6 +71,12 @@ ask "Paperclip URL as seen from inside the server (default: http://localhost:310
 read -r PC_HOST_INPUT
 PC_HOST="${PC_HOST_INPUT:-http://localhost:3100}"
 
+ask "Public HTTPS URL (e.g. https://paperclip.acme.com — leave empty for NUC/LAN installs):"
+read -r PC_ORIGIN_INPUT
+# PC_ORIGIN defaults to PC_HOST. For VPS installs behind Caddy, set to the public domain
+# so the MCP proxy sends the correct Origin header matching Paperclip's CSRF check.
+PC_ORIGIN="${PC_ORIGIN_INPUT:-$PC_HOST}"
+
 CONTAINER="paperclipai-docker-server-1"
 ask "Docker container name (default: $CONTAINER):"
 read -r CONTAINER_INPUT
@@ -175,6 +181,10 @@ cat > "$ENV_FILE" <<EOF
 # $CUSTOMER — Paperclip SaaS instance config
 # Created: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 PC_HOST=$PC_HOST
+# PC_ORIGIN: public URL sent as Origin header by the MCP proxy.
+# Must match PAPERCLIP_PUBLIC_URL so Paperclip's CSRF check passes.
+# For NUC/LAN installs this equals PC_HOST. For VPS+Caddy installs set the HTTPS domain.
+PC_ORIGIN=$PC_ORIGIN
 PC_EMAIL=$PC_EMAIL
 # PC_PASSWORD — stored in customers/$CUSTOMER.secrets (not committed)
 PC_COMPANY_ID=$PC_COMPANY_ID

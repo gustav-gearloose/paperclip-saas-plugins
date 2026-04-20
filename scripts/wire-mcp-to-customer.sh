@@ -36,8 +36,12 @@ set +a
 
 CONTAINER="${CONTAINER:-paperclipai-docker-server-1}"
 SSH_HOST="${SSH_HOST:?SSH_HOST not set in $ENV_FILE}"
-PC_HOST="${PC_HOST:?PC_HOST not set in $ENV_FILE}"        # external, used by this script
+PC_HOST="${PC_HOST:?PC_HOST not set in $ENV_FILE}"        # external public URL, used by this script
 PC_HOST_INTERNAL="http://localhost:3100"                   # used by proxy inside container
+# PC_ORIGIN is what the proxy sends as the HTTP Origin header.
+# When Paperclip sits behind Caddy (HTTPS), its CSRF check validates Origin against
+# PAPERCLIP_PUBLIC_URL. The proxy connects via localhost but must claim the public URL.
+PC_ORIGIN="${PC_ORIGIN:-$PC_HOST}"
 PC_EMAIL="${PC_EMAIL:?PC_EMAIL not set in $ENV_FILE}"
 PC_COMPANY_ID="${PC_COMPANY_ID:?PC_COMPANY_ID not set in $ENV_FILE}"
 DOCKER="DOCKER_HOST=unix:///var/run/docker.sock docker"
@@ -122,6 +126,7 @@ cfg = {
             'args': [sys.argv[1] + '/index.js'],
             'env': {
                 'PC_HOST': sys.argv[2],
+                'PC_ORIGIN': sys.argv[7],
                 'PC_EMAIL': sys.argv[3],
                 'PC_PASSWORD': sys.argv[4],
                 'PC_COMPANY_ID': sys.argv[5],
@@ -131,7 +136,7 @@ cfg = {
     }
 }
 print(json.dumps(cfg, indent=2))
-" "$PROXY_PATH" "$PC_HOST_INTERNAL" "$PC_EMAIL" "$PC_PASSWORD" "$PC_COMPANY_ID" "$AGENT_ID")
+" "$PROXY_PATH" "$PC_HOST_INTERNAL" "$PC_EMAIL" "$PC_PASSWORD" "$PC_COMPANY_ID" "$AGENT_ID" "$PC_ORIGIN")
 echo "$MCP_JSON" | ssh "$SSH_HOST" "$DOCKER exec -i $CONTAINER tee $MCP_CONFIG_PATH" > /dev/null
 info "Written: $MCP_CONFIG_PATH"
 
@@ -146,6 +151,7 @@ proxy_out=$(ssh "$SSH_HOST" "
   printf '%s\n' '#!/bin/sh' \
     'export PC_PASSWORD=\$(echo $_PW_B64 | base64 -d)' \
     'export PC_HOST=$PC_HOST_INTERNAL' \
+    'export PC_ORIGIN=$PC_ORIGIN' \
     'export PC_EMAIL=$PC_EMAIL' \
     'export PC_COMPANY_ID=$PC_COMPANY_ID' \
     'export PC_AGENT_ID=$AGENT_ID' \
