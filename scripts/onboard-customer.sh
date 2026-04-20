@@ -283,7 +283,8 @@ plugin_dir() {
     27) echo "packages/plugin-airtable" ;;
     28) echo "packages/plugin-harvest" ;;
     29) echo "packages/plugin-typeform" ;;
-    30) echo "__custom__" ;;
+    30) echo "packages/plugin-calendly" ;;
+    31) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -320,7 +321,8 @@ plugin_env_vars() {
     27) printf 'APIKEYREF' ;;
     28) printf 'APITOKENREF\nPLUGIN_CONFIG_accountId' ;;
     29) printf 'APITOKENREF' ;;
-    30) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    30) printf 'APITOKENREF' ;;
+    31) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -359,14 +361,15 @@ echo "   26) Todoist (projects, tasks, labels, comments)"
 echo "   27) Airtable (bases, tables, records — CRUD + search)"
 echo "   28) Harvest (time tracking — entries, projects, clients, invoices)"
 echo "   29) Typeform (surveys — list forms, read responses, insights)"
-echo "   30) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   30) Calendly (scheduling — event types, meetings, invitees)"
+echo "   31) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to install? (comma-separated numbers, e.g. 1,2,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29)  # 30 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30)  # 31 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi

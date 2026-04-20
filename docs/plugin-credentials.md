@@ -564,3 +564,18 @@ PC_PASSWORD=<pw> \
   APITOKENREF=<typeform-personal-access-token> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-typeform
 ```
+
+## Calendly (scheduling)
+
+**Env vars:** `APITOKENREF`
+
+**Where to find them:**
+1. Log in to Calendly → click your avatar → **Integrations & apps → API & Webhooks**
+2. Click **Generate new token**, give it a name, and copy the Personal Access Token
+3. Store it as a Paperclip secret
+
+```bash
+PC_PASSWORD=<pw> \
+  APITOKENREF=<calendly-personal-access-token> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-calendly
+```

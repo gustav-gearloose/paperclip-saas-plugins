@@ -137,6 +137,7 @@ SMOKE_TOOLS=(
   "airtable|airtable_list_bases|{}"
   "harvest|harvest_get_me|{}"
   "typeform|typeform_list_forms|{}"
+  "calendly|calendly_get_current_user|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 
