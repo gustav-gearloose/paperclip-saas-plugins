@@ -49,12 +49,16 @@ pc() {
     -H 'Origin: $PC_ORIGIN' $*"
 }
 
-pc_post() {
-  local url="$1"; shift
-  ssh "$SSH_HOST" "curl -s -b /tmp/pc_smoke_cookies.txt \
+pc_post_json() {
+  local url="$1"
+  local body="$2"
+  local b64
+  b64=$(printf '%s' "$body" | base64)
+  ssh "$SSH_HOST" "echo $b64 | base64 -d | curl -s -b /tmp/pc_smoke_cookies.txt \
     -X POST '$PC_HOST$url' \
     -H 'Content-Type: application/json' \
-    -H 'Origin: $PC_ORIGIN' $*"
+    -H 'Origin: $PC_ORIGIN' \
+    --data-binary @-"
 }
 
 echo "Smoke-testing Paperclip plugins for customer: $CUSTOMER"
@@ -153,8 +157,8 @@ while IFS=$'\t' read -r plugin_id display_name status plugin_key; do
   if [[ -z "$TOOL_NAME" ]]; then
     info "No smoke tool configured for plugin key: $plugin_key (skipping tool test)"
   else
-    exec_result=$(pc_post "/api/plugins/tools/execute" \
-      "-d '{\"tool\":\"$TOOL_NAME\",\"parameters\":$TOOL_PARAMS,\"runContext\":$RUN_CONTEXT}'" \
+    EXEC_BODY="{\"tool\":\"$TOOL_NAME\",\"parameters\":$TOOL_PARAMS,\"runContext\":$RUN_CONTEXT}"
+    exec_result=$(pc_post_json "/api/plugins/tools/execute" "$EXEC_BODY" \
       2>/dev/null || echo '{"error":"curl failed"}')
 
     has_error=$(echo "$exec_result" | python3 -c "
