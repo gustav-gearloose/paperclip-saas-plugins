@@ -34,7 +34,7 @@ set +a
 
 [[ -n "${PC_PASSWORD:-}" ]] || { echo "❌ PC_PASSWORD is not set" >&2; exit 1; }
 
-CONTAINER="${CONTAINER:-paperclip-deploy-paperclip-1}"
+CONTAINER="${CONTAINER:-paperclipai-server-1}"
 SSH_HOST="${SSH_HOST:?SSH_HOST not set in $ENV_FILE}"
 PC_HOST="${PC_HOST:?PC_HOST not set in $ENV_FILE}"        # external, used by this script
 PC_HOST_INTERNAL="http://localhost:3100"                   # used by proxy inside container

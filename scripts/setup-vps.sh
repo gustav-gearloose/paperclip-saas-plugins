@@ -200,7 +200,7 @@ section "Step 9: Run Paperclip onboarding wizard"
 CONTAINER_NAME=$(ssh "$SSH_HOST" "cd $DEPLOY_DIR && docker compose ps --format json 2>/dev/null | python3 -c \"import sys,json; [print(c.get('Name','')) for c in [json.loads(l) for l in sys.stdin] if 'paperclip' in c.get('Service','').lower()]\" 2>/dev/null | head -1 || echo ''")
 
 if [[ -z "$CONTAINER_NAME" ]]; then
-  CONTAINER_NAME="paperclip-deploy-server-1"
+  CONTAINER_NAME="paperclipai-server-1"
   warn "Could not detect container name — assuming: $CONTAINER_NAME"
 fi
 

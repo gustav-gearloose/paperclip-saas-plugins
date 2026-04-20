@@ -30,7 +30,7 @@ source "$ENV_FILE"
 set +a
 
 SSH_HOST="${SSH_HOST:?SSH_HOST not set}"
-CONTAINER="${CONTAINER:-paperclip-deploy-paperclip-1}"
+CONTAINER="${CONTAINER:-paperclipai-server-1}"
 DOCKER="DOCKER_HOST=unix:///var/run/docker.sock docker"
 
 info() { echo "→ $*"; }
