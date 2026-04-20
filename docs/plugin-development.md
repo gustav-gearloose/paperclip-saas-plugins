@@ -2,6 +2,35 @@
 
 This is the living reference for building and deploying custom Paperclip plugins as part of the Gearloose SaaS offering. Everything here is battle-tested against a real self-hosted Paperclip instance.
 
+## Quickstart — scaffold a new plugin
+
+```bash
+./scripts/new-plugin.sh <name> \
+  [--secret <secretRef>]... \
+  [--config <key>=<description>]... \
+  [--tool <tool_name>]...
+```
+
+Example:
+
+```bash
+./scripts/new-plugin.sh freshdesk \
+  --secret apiTokenRef \
+  --config subdomain="Freshdesk subdomain" \
+  --tool list_tickets --tool get_ticket --tool create_ticket
+```
+
+This generates `packages/plugin-freshdesk/` with all required files pre-wired. Then build and validate:
+
+```bash
+cd packages/plugin-freshdesk && npm install && npm run build && cd ../..
+./scripts/validate-plugins.sh packages/plugin-freshdesk
+```
+
+The rest of this document explains the plugin system in detail — read it to understand what the scaffold generates and how to implement the tool handlers.
+
+---
+
 ## Overview
 
 Paperclip plugins are Node.js ESM workers that run inside the Paperclip container process. A plugin registers tools at startup; agents can then call those tools via the Paperclip MCP interface. This is the right primitive for giving Paperclip agents access to external services (Dinero, CRM, etc.) without touching Paperclip core.

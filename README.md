@@ -147,6 +147,7 @@ scripts/
   smoke-test-plugins.sh     # Health + tool execution check
   post-upgrade.sh           # Full recovery after Paperclip upgrade
   patch-paperclip-container.sh # Reapply compiled JS bug patches
+  new-plugin.sh             # Scaffold a new plugin skeleton from CLI flags
   validate-plugins.sh       # Local structural validation before deploy
 
 docs/
@@ -172,6 +173,48 @@ docs/
 | Zendesk | `plugin-zendesk` | 10 | Email + API token |
 
 All plugins: zero external npm dependencies (pure fetch + Node builtins + plugin-sdk).
+
+---
+
+## Building a new plugin
+
+Scaffold a new plugin skeleton in one command:
+
+```bash
+./scripts/new-plugin.sh <name> \
+  [--secret <secretRef>]... \
+  [--config <key>=<description>]... \
+  [--tool <tool_name>]...
+```
+
+Example — a Freshdesk support integration:
+
+```bash
+./scripts/new-plugin.sh freshdesk \
+  --secret apiTokenRef \
+  --config subdomain="Freshdesk subdomain" \
+  --config email="Agent email address" \
+  --tool list_tickets --tool get_ticket --tool create_ticket
+```
+
+This creates `packages/plugin-freshdesk/` with all required files pre-wired:
+- `tsconfig.json`, `package.json`, `deploy-config.json`
+- `src/manifest.ts` — manifest with tool declarations and config schema
+- `src/worker.ts` — `definePlugin` + `ctx.tools.register` stubs per tool
+
+Then build, validate, and provision:
+
+```bash
+cd packages/plugin-freshdesk && npm install && npm run build
+cd ../..
+./scripts/validate-plugins.sh packages/plugin-freshdesk
+PC_PASSWORD=<pw> APITOKENREF=<token> \
+  PLUGIN_CONFIG_subdomain=<subdomain> \
+  PLUGIN_CONFIG_email=<email> \
+  ./scripts/provision-plugin.sh <customer-slug> packages/plugin-freshdesk
+```
+
+See `docs/plugin-development.md` for the full plugin API reference.
 
 ---
 

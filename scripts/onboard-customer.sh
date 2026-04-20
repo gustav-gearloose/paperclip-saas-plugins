@@ -218,6 +218,7 @@ plugin_dir() {
     8)  echo "packages/plugin-notion" ;;
     9)  echo "packages/plugin-linear" ;;
     10) echo "packages/plugin-email" ;;
+    11) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -235,6 +236,7 @@ plugin_env_vars() {
     8)  printf 'INTEGRATIONTOKENREF' ;;
     9)  printf 'APIKEYREF' ;;
     10) printf 'EMAILPASSWORDREF\nPLUGIN_CONFIG_emailUser\nPLUGIN_CONFIG_imapHost\nPLUGIN_CONFIG_imapPort\nPLUGIN_CONFIG_smtpHost\nPLUGIN_CONFIG_smtpPort\nPLUGIN_CONFIG_displayName' ;;
+    11) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -254,13 +256,14 @@ echo "    7) Google Sheets"
 echo "    8) Notion"
 echo "    9) Linear (issue tracking)"
 echo "   10) Email (IMAP/SMTP)"
+echo "   11) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to install? (comma-separated numbers, e.g. 1,2,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10)
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10)  # 11 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi
@@ -292,6 +295,99 @@ if [[ ${#SELECTED_NUMS[@]} -gt 0 ]]; then
     num="${num// /}"
     dir=$(plugin_dir "$num")
     [[ -z "$dir" ]] && { warn "Unknown plugin number: $num (skipping)"; continue; }
+
+    # ── custom plugin scaffold sub-flow ───────────────────────────────────────
+    if [[ "$dir" == "__custom__" ]]; then
+      echo ""
+      echo -e "  ${CYAN}Custom plugin scaffold${NC}"
+      ask "  Plugin name (short, e.g. 'freshdesk' or 'fortnox'):"
+      read -r custom_name
+      [[ -z "$custom_name" ]] && { warn "No plugin name given — skipping custom plugin"; continue; }
+
+      custom_dir="$REPO_ROOT/packages/plugin-$custom_name"
+      if [[ -d "$custom_dir" ]]; then
+        warn "  $custom_dir already exists — skipping scaffold (will provision existing)"
+      else
+        ask "  Secret refs (space-separated, e.g. 'apiTokenRef accessKeyRef' — or leave empty):"
+        read -r custom_secrets_raw
+        ask "  Config fields (space-separated key=desc pairs, e.g. 'subdomain=Subdomain email=Email' — or empty):"
+        read -r custom_configs_raw
+        ask "  Tool names (space-separated, e.g. 'list_tickets get_ticket' — or empty):"
+        read -r custom_tools_raw
+
+        scaffold_args=("$custom_name")
+        for s in $custom_secrets_raw; do
+          scaffold_args+=(--secret "$s")
+        done
+        for kv in $custom_configs_raw; do
+          scaffold_args+=(--config "$kv")
+        done
+        for t in $custom_tools_raw; do
+          scaffold_args+=(--tool "$t")
+        done
+
+        info "  Scaffolding plugin-$custom_name..."
+        if ! "$SCRIPT_DIR/new-plugin.sh" "${scaffold_args[@]}"; then
+          warn "  Scaffold failed — skipping plugin-$custom_name"; continue
+        fi
+
+        info "  Building plugin-$custom_name (npm install + tsc)..."
+        if ! (cd "$custom_dir" && npm install --ignore-scripts && npm run build) 2>&1; then
+          warn "  Build failed — skipping plugin-$custom_name"; continue
+        fi
+
+        info "  Validating plugin-$custom_name..."
+        "$SCRIPT_DIR/validate-plugins.sh" "$custom_dir" || warn "  Validation warnings above — continuing anyway"
+      fi
+
+      # collect credentials for the custom plugin: ask for each secret ref and config key
+      custom_env_vars=()
+      secret_refs_in_dir=()
+      config_keys_in_dir=()
+      if [[ -f "$custom_dir/deploy-config.json" ]]; then
+        while IFS= read -r line; do
+          key=$(echo "$line" | sed 's/.*"//;s/".*//')
+          [[ -n "$key" ]] && secret_refs_in_dir+=("$key")
+        done < <(python3 -c "
+import json, sys
+d=json.load(open(sys.argv[1]))
+for k in d.get('secretRefs',{}): print(k)
+" "$custom_dir/deploy-config.json" 2>/dev/null || true)
+        while IFS= read -r line; do
+          [[ -n "$line" ]] && config_keys_in_dir+=("$line")
+        done < <(python3 -c "
+import json, sys
+d=json.load(open(sys.argv[1]))
+for k in d.get('configJson',{}): print(k)
+" "$custom_dir/deploy-config.json" 2>/dev/null || true)
+      fi
+
+      echo ""
+      for sr in "${secret_refs_in_dir[@]+"${secret_refs_in_dir[@]}"}"; do
+        var_name="$(echo "$sr" | tr '[:lower:]' '[:upper:]')"
+        ask "    $var_name (credential value for secret ref '$sr'):"
+        read -rs vv; echo ""
+        export "$var_name=$vv"
+        custom_env_vars+=("$var_name")
+      done
+      for ck in "${config_keys_in_dir[@]+"${config_keys_in_dir[@]}"}"; do
+        ask "    PLUGIN_CONFIG_$ck:"
+        read -r vv
+        export "PLUGIN_CONFIG_$ck=$vv"
+        custom_env_vars+=("PLUGIN_CONFIG_$ck")
+      done
+
+      info "  Provisioning plugin-$custom_name..."
+      if PC_PASSWORD="$PC_PASSWORD" "$SCRIPT_DIR/provision-plugin.sh" "$CUSTOMER" "$custom_dir"; then
+        ok "plugin-$custom_name provisioned"
+      else
+        warn "plugin-$custom_name provisioning failed. Check output above."
+      fi
+
+      for vn in "${custom_env_vars[@]+"${custom_env_vars[@]}"}"; do unset "$vn"; done
+      continue
+    fi
+
     plugin_name=$(basename "$dir")
     # Bash 3 compatible: read newline-separated output into array
     env_var_names=()
