@@ -313,7 +313,8 @@ plugin_dir() {
     57) echo "packages/plugin-planday" ;;
     58) echo "packages/plugin-pleo" ;;
     59) echo "packages/plugin-clockify" ;;
-    60) echo "__custom__" ;;
+    60) echo "packages/plugin-hibob" ;;
+    61) echo "__custom__" ;;
     *)  echo "" ;;
   esac
 }
@@ -380,7 +381,8 @@ plugin_env_vars() {
     57) printf 'CLIENTIDREF\nREFRESHTOKENREF' ;;
     58) printf 'CLIENTIDREF\nCLIENTSECRETREF' ;;
     59) printf 'APIKEYREF' ;;
-    60) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
+    60) printf 'SERVICEUSERIDREF\nTOKENREF' ;;
+    61) printf '' ;;  # custom — credentials collected interactively by scaffold sub-flow
     *)  printf '' ;;
   esac
 }
@@ -449,14 +451,15 @@ echo "   56) SuperOffice CRM (contacts, persons, sales, appointments, projects)"
 echo "   57) Planday (workforce management — employees, shifts, departments, punch clock, leave)"
 echo "   58) Pleo (expense management — expenses, cards, users, teams, tags, accounting entries)"
 echo "   59) Clockify (time tracking — workspaces, projects, clients, users, tags, time entries, reports)"
-echo "   60) Custom plugin (scaffold a new plugin with new-plugin.sh)"
+echo "   60) HiBob (HR — employees, time-off, departments, tasks, who's out, documents)"
+echo "   61) Custom plugin (scaffold a new plugin with new-plugin.sh)"
 echo ""
 ask "Which plugins to install? (comma-separated numbers, e.g. 1,2,6 — or 'all' or 'none'):"
 read -r PLUGIN_SELECTION
 
 SELECTED_NUMS=()
 if [[ "$PLUGIN_SELECTION" == "all" ]]; then
-  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59)  # 60 (custom) excluded from 'all'
+  SELECTED_NUMS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60)  # 61 (custom) excluded from 'all'
 elif [[ "$PLUGIN_SELECTION" != "none" && -n "$PLUGIN_SELECTION" ]]; then
   IFS=',' read -ra SELECTED_NUMS <<< "$PLUGIN_SELECTION"
 fi
@@ -490,7 +493,7 @@ if [[ ${#SELECTED_NUMS[@]} -gt 0 ]]; then
     [[ -z "$dir" ]] && { warn "Unknown plugin number: $num (skipping)"; continue; }
 
     # ── custom plugin scaffold sub-flow ───────────────────────────────────────
-    if [[ "$dir" == "__custom__" ]]; then  # slot 60
+    if [[ "$dir" == "__custom__" ]]; then  # slot 61
       echo ""
       echo -e "  ${CYAN}Custom plugin scaffold${NC}"
       ask "  Plugin name (short, e.g. 'freshdesk' or 'fortnox'):"

@@ -186,6 +186,7 @@ SMOKE_TOOLS=(
   "planday|planday_list_departments|{}"
   "pleo|pleo_list_tags|{}"
   "clockify|clockify_list_workspaces|{}"
+  "hibob|hibob_list_employees|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

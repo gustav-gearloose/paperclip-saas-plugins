@@ -1166,3 +1166,22 @@ APIKEYREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-clockify
 ```
 ```
+
+## 60. HiBob
+
+**Where to get credentials:**
+1. Log in to HiBob → Settings → Integrations → Service Users
+2. Create a new service user and copy the **Service User ID** and **Token**
+3. Store both as separate Paperclip secrets
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `SERVICEUSERIDREF` | UUID of the Paperclip secret holding the HiBob service user ID |
+| `TOKENREF` | UUID of the Paperclip secret holding the HiBob service user token |
+
+```bash
+SERVICEUSERIDREF=<secret-uuid> \
+  TOKENREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-hibob
+```
