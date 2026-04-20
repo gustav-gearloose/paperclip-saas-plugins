@@ -185,6 +185,7 @@ SMOKE_TOOLS=(
   "superoffice|superoffice_get_current_user|{}"
   "planday|planday_list_departments|{}"
   "pleo|pleo_list_tags|{}"
+  "clockify|clockify_list_workspaces|{}"
   # google-sheets: all tools require a real spreadsheet_id; health check is sufficient
 )
 

@@ -1148,4 +1148,21 @@ CLIENTIDREF=<secret-uuid> \
 CLIENTIDREF=<secret-uuid> \
   CLIENTSECRETREF=<secret-uuid> \
   ./scripts/provision-plugin.sh <slug> packages/plugin-pleo
+
+## 59. Clockify
+
+**Where to get credentials:**
+1. Log in to [Clockify](https://clockify.me) → Profile Settings → API
+2. Generate an **API key** (or copy the existing one)
+3. Store it as a Paperclip secret
+
+**Env vars:**
+| Variable | Value |
+|----------|-------|
+| `APIKEYREF` | UUID of the Paperclip secret holding your Clockify API key |
+
+```bash
+APIKEYREF=<secret-uuid> \
+  ./scripts/provision-plugin.sh <slug> packages/plugin-clockify
+```
 ```
