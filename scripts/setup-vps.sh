@@ -211,6 +211,7 @@ BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
 DATABASE_URL=$DATABASE_URL
 ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
 PAPERCLIP_PUBLIC_URL=$PUBLIC_URL
+PAPERCLIP_DEPLOYMENT_MODE=authenticated
 SECRETSEOF
   r "chmod 600 $SECRETS_FILE"
   ok "Secrets written to $SECRETS_FILE"
@@ -234,7 +235,7 @@ EnvironmentFile=$SECRETS_FILE
 Environment=NODE_ENV=production
 Environment=PAPERCLIP_HOME=$PAPERCLIP_DATA
 Environment=PORT=$PAPERCLIP_PORT
-Environment=HOST=127.0.0.1
+Environment=HOST=0.0.0.0
 
 ExecStart=/usr/bin/node \
   --import $PAPERCLIP_DIR/server/node_modules/tsx/dist/loader.mjs \
