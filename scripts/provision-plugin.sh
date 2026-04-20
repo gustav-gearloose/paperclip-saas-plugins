@@ -121,12 +121,15 @@ for key, spec in deploy.get('secretRefs', {}).items():
 
     secret_name = spec.get('name', f'{key}')
     payload = json.dumps({'name': secret_name, 'value': secret_value})
+    # Base64-encode payload to avoid shell quoting issues with special chars in secret values
+    payload_b64 = base64.b64encode(payload.encode()).decode()
     cmd = (
+        f"echo {payload_b64} | base64 -d | "
         f"curl -s -X POST '{pc_host}/api/companies/{company_id}/secrets' "
         f"-H 'Content-Type: application/json' "
         f"-H 'Origin: {pc_host}' "
         f"-b /tmp/pc_provision_cookies.txt "
-        f"-d '{payload}'"
+        f"--data-binary @-"
     )
     result = subprocess.run(['ssh', ssh_host, cmd], capture_output=True, text=True)
     resp = json.loads(result.stdout)

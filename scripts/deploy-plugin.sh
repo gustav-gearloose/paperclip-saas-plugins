@@ -182,8 +182,10 @@ for key, s in refs.items():
       info "Reusing existing secret $key → $uuid"
     else
       info "Creating secret '$name'..."
-      UUID=$(pc_curl_post "/api/companies/$PC_COMPANY_ID/secrets" \
-        "-d '{\"name\":\"$name\",\"value\":\"$value\"}'" \
+      PAYLOAD_B64=$(python3 -c "import json,base64,sys; print(base64.b64encode(json.dumps({'name':sys.argv[1],'value':sys.argv[2]}).encode()).decode())" "$name" "$value")
+      UUID=$(ssh "$SSH_HOST" "echo $PAYLOAD_B64 | base64 -d | curl -s -X POST '$PC_HOST/api/companies/$PC_COMPANY_ID/secrets' \
+        -H 'Content-Type: application/json' -H 'Origin: $PC_HOST' \
+        -b /tmp/pc_deploy_cookies.txt --data-binary @-" \
         | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
       echo "$key=$UUID" >> "$SECRET_UUIDS_FILE"
       info "  → $key = $UUID"
