@@ -103,22 +103,31 @@ export class DineroClient {
     query?: string;
     pageSize?: number;
   } = {}): Promise<unknown> {
+    // Dinero's /contacts endpoint has no server-side customer/supplier filter
+    // and uses IsDebitor / IsCreditor (not IsCustomer / IsSupplier). We request
+    // those flags and filter client-side below. Address is called Street in the
+    // ContactReadModel.
     const qs = new URLSearchParams();
-    if (params.type && params.type !== "all") qs.set("typeFilter", params.type);
     if (params.query) qs.set("queryFilter", params.query);
-    qs.set("fields", "ExternalReference,Name,Email,Phone,Address,City,ZipCode,CountryKey,VatNumber,IsPerson,IsCustomer,IsSupplier");
+    qs.set("fields", "ContactGuid,ExternalReference,Name,Email,Phone,Street,City,ZipCode,CountryKey,VatNumber,IsPerson,IsDebitor,IsCreditor");
     qs.set("pageSize", String(params.pageSize ?? 200));
-    return this.request(`/contacts?${qs}`, {}, "v2");
+    const response = await this.request<{ Collection?: Array<Record<string, unknown>> } & Record<string, unknown>>(`/contacts?${qs}`, {}, "v2");
+    const type = params.type?.toLowerCase();
+    if (!type || type === "all" || !response.Collection) return response;
+    const flag = type === "customer" ? "IsDebitor" : type === "supplier" ? "IsCreditor" : null;
+    if (!flag) return response;
+    return { ...response, Collection: response.Collection.filter((c) => c[flag] === true) };
   }
 
   // ── Accounts / Balance ────────────────────────────────────────────────────
 
-  async listAccounts(fiscalYear?: number): Promise<unknown> {
-    const qs = new URLSearchParams();
-    if (fiscalYear) {
-      qs.set("fiscalYearStart", `${fiscalYear}-01-01`);
-    }
-    return this.request(`/accounts?${qs}`);
+  async listAccounts(_fiscalYear?: number): Promise<unknown> {
+    // Dinero's public API exposes account lists under /accounts/entry (all
+    // accounts), /accounts/purchase (2000-9399 expense range) and
+    // /accounts/deposit. There is no generic /accounts endpoint and no
+    // server-side fiscal-year filter — the chart of accounts is per-org, not
+    // per-year. _fiscalYear is accepted for backwards compatibility but ignored.
+    return this.request(`/accounts/entry`);
   }
 
   async getKeyFigures(fiscalYear?: number): Promise<unknown> {
@@ -158,30 +167,33 @@ export class DineroClient {
   // ── VAT ───────────────────────────────────────────────────────────────────
   // /vatreport is not in the official OpenAPI spec; best-effort kept as-is.
 
-  async getVatReport(params: {
+  async getVatReport(_params: {
     year?: number;
     quarter?: number;
   } = {}): Promise<unknown> {
-    const year = params.year ?? new Date().getFullYear();
-    const qs = new URLSearchParams();
-    if (params.quarter) {
-      const qStart = (params.quarter - 1) * 3 + 1;
-      const qEnd = qStart + 2;
-      qs.set("dateFrom", `${year}-${String(qStart).padStart(2, "0")}-01`);
-      qs.set("dateTo", `${year}-${String(qEnd).padStart(2, "0")}-31`);
-    } else {
-      qs.set("dateFrom", `${year}-01-01`);
-      qs.set("dateTo", `${year}-12-31`);
-    }
-    return this.request(`/vatreport?${qs}`);
+    // Dinero's public API has no VAT-report endpoint (only /vatTypes listing the
+    // VAT-code definitions). The in-product VAT report is not exposed via API.
+    // Callers that need VAT numbers should aggregate from ledger entries
+    // (/entries with fromDate/toDate) filtered by VAT accounts 6901-6904.
+    throw new Error(
+      "Dinero's public API does not expose a VAT-report endpoint. " +
+      "Use dinero_list_entries for the period and aggregate VAT accounts (6901-6904) client-side, " +
+      "or download the report from app.dinero.dk."
+    );
   }
 
   // ── Products ──────────────────────────────────────────────────────────────
 
   async listProducts(params: { query?: string } = {}): Promise<unknown> {
     const qs = new URLSearchParams();
-    if (params.query) qs.set("queryFilter", params.query);
-    qs.set("fields", "Guid,Name,Description,BaseAmountExclVat,VatScale,Unit,ProductNumber");
+    // /products has two filter params: freeTextSearch (matches Name and
+    // ProductNumber) and queryFilter (structured filter). The plugin exposes a
+    // single free-form "query", so use freeTextSearch.
+    if (params.query) qs.set("freeTextSearch", params.query);
+    // ProductReadModel fields: ProductGuid (not Guid), Name, Comment (no
+    // Description), BaseAmountValue (excl vat), BaseAmountValueInclVat, Unit,
+    // ProductNumber, AccountNumber, ExternalReference.
+    qs.set("fields", "ProductGuid,Name,Comment,ProductNumber,BaseAmountValue,BaseAmountValueInclVat,Unit,AccountNumber");
     qs.set("pageSize", "200");
     return this.request(`/products?${qs}`);
   }
