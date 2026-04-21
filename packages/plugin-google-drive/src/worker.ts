@@ -13,24 +13,35 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as DrivePluginConfig;
-    const { delegatedUser, serviceAccountJsonRef } = config;
+    let cachedClient: GoogleDriveClient | null = null;
+    let configError: string | null = null;
 
-    if (!serviceAccountJsonRef) {
-      ctx.logger.error("Google Drive plugin: serviceAccountJsonRef is required");
-      return;
+    async function getClient(): Promise<GoogleDriveClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as DrivePluginConfig;
+      const { delegatedUser, serviceAccountJsonRef } = config;
+
+      if (!serviceAccountJsonRef) {
+        configError = "Google Drive plugin: serviceAccountJsonRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let serviceAccountJson: string;
+      try {
+        serviceAccountJson = await ctx.secrets.resolve(serviceAccountJsonRef);
+      } catch (err) {
+        configError = `Google Drive plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new GoogleDriveClient(serviceAccountJson, delegatedUser ?? "");
+      return cachedClient;
+      ctx.logger.info(`Google Drive plugin: initialized${delegatedUser ? ` for ${delegatedUser}` : " as service account"}, registering tools`);
     }
-
-    let serviceAccountJson: string;
-    try {
-      serviceAccountJson = await ctx.secrets.resolve(serviceAccountJsonRef);
-    } catch (err) {
-      ctx.logger.error(`Google Drive plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new GoogleDriveClient(serviceAccountJson, delegatedUser ?? "");
-    ctx.logger.info(`Google Drive plugin: initialized${delegatedUser ? ` for ${delegatedUser}` : " as service account"}, registering tools`);
 
     ctx.tools.register(
       "drive_list_files",
@@ -50,6 +61,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const files = await client.listFiles(params as Parameters<typeof client.listFiles>[0]);
           return { content: JSON.stringify(files, null, 2) };
         } catch (err) { return errResult(err); }
@@ -71,6 +84,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { file_id: string };
           const file = await client.getFile(p.file_id);
           return { content: JSON.stringify(file, null, 2) };
@@ -93,6 +108,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { file_id: string };
           const content = await client.getFileContent(p.file_id);
           return { content };
@@ -116,6 +133,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const files = await client.searchFiles(params as Parameters<typeof client.searchFiles>[0]);
           return { content: JSON.stringify(files, null, 2) };
         } catch (err) { return errResult(err); }
@@ -138,6 +157,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const folder = await client.createFolder(params as Parameters<typeof client.createFolder>[0]);
           return { content: JSON.stringify(folder, null, 2) };
         } catch (err) { return errResult(err); }
@@ -162,6 +183,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.uploadFile(params as Parameters<typeof client.uploadFile>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -185,6 +208,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.updateFile(params as Parameters<typeof client.updateFile>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -206,6 +231,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { file_id: string };
           const result = await client.deleteFile(p.file_id);
           return { content: JSON.stringify(result) };
@@ -230,6 +257,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.moveFile(params as Parameters<typeof client.moveFile>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -253,6 +282,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.copyFile(params as Parameters<typeof client.copyFile>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -276,6 +307,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createSharingLink(params as Parameters<typeof client.createSharingLink>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -296,6 +329,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const files = await client.listSharedWithMe(params as Parameters<typeof client.listSharedWithMe>[0]);
           return { content: JSON.stringify(files, null, 2) };
         } catch (err) { return errResult(err); }
@@ -314,6 +349,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const about = await client.getAbout();
           return { content: JSON.stringify(about, null, 2) };
         } catch (err) { return errResult(err); }

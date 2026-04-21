@@ -14,23 +14,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as JiraPluginConfig;
+    let cachedClient: JiraClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiTokenRef || !config.email || !config.domain) {
-      ctx.logger.error("Jira plugin: apiTokenRef, email, and domain are required");
-      return;
+    async function getClient(): Promise<JiraClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as JiraPluginConfig;
+
+      if (!config.apiTokenRef || !config.email || !config.domain) {
+        configError = "Jira plugin: apiTokenRef, email, and domain are required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiToken: string;
+      try {
+        apiToken = await ctx.secrets.resolve(config.apiTokenRef);
+      } catch (err) {
+        configError = `Jira plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("Jira plugin: secret resolved, registering tools");
+      cachedClient = new JiraClient(config.domain, config.email, apiToken);
+      return cachedClient;
     }
-
-    let apiToken: string;
-    try {
-      apiToken = await ctx.secrets.resolve(config.apiTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Jira plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("Jira plugin: secret resolved, registering tools");
-    const client = new JiraClient(config.domain, config.email, apiToken);
 
     ctx.tools.register(
       "jira_search_issues",
@@ -48,6 +59,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { jql?: string; text?: string; limit?: number };
           const jql = p.jql ?? (p.text ? `text ~ "${p.text}"` : "order by created DESC");
           const result = await client.searchIssuesJql(jql, p.limit ?? 20);
@@ -71,6 +84,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { issue_key: string };
           const result = await client.getIssue(p.issue_key);
           return { content: JSON.stringify(result, null, 2) };
@@ -99,6 +114,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createIssue(params as {
             project_key: string;
             summary: string;
@@ -133,6 +150,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.updateIssue(params as {
             issue_key: string;
             summary?: string;
@@ -162,6 +181,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { issue_key: string; transition_name: string };
           const result = await client.transitionIssue(p.issue_key, p.transition_name);
           return { content: JSON.stringify(result, null, 2) };
@@ -185,6 +206,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { issue_key: string; comment: string };
           const result = await client.addComment(p.issue_key, p.comment);
           return { content: JSON.stringify(result, null, 2) };
@@ -206,6 +229,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { limit?: number };
           const result = await client.listProjects(p.limit ?? 50);
           return { content: JSON.stringify(result, null, 2) };
@@ -228,6 +253,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { project_key: string };
           const result = await client.getProject(p.project_key);
           return { content: JSON.stringify(result, null, 2) };
@@ -251,6 +278,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { board_id: number; state?: string };
           const result = await client.listSprints(p.board_id, p.state ?? "active");
           return { content: JSON.stringify(result, null, 2) };
@@ -274,6 +303,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { query: string; limit?: number };
           const result = await client.listUsers(p.query, p.limit ?? 20);
           return { content: JSON.stringify(result, null, 2) };

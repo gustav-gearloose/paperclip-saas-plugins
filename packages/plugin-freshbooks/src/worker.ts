@@ -14,29 +14,40 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as FBConfig;
-    const { clientIdRef, clientSecretRef, refreshTokenRef } = config;
+    let cachedClient: FreshBooksClient | null = null;
+    let configError: string | null = null;
 
-    if (!clientIdRef || !clientSecretRef || !refreshTokenRef) {
-      ctx.logger.error("freshbooks plugin: clientIdRef, clientSecretRef, and refreshTokenRef are required");
-      return;
+    async function getClient(): Promise<FreshBooksClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as FBConfig;
+      const { clientIdRef, clientSecretRef, refreshTokenRef } = config;
+
+      if (!clientIdRef || !clientSecretRef || !refreshTokenRef) {
+        configError = "freshbooks plugin: clientIdRef, clientSecretRef, and refreshTokenRef are required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let clientId: string, clientSecret: string, refreshToken: string;
+      try {
+        [clientId, clientSecret, refreshToken] = await Promise.all([
+          ctx.secrets.resolve(clientIdRef),
+          ctx.secrets.resolve(clientSecretRef),
+          ctx.secrets.resolve(refreshTokenRef),
+        ]);
+      } catch (err) {
+        configError = `freshbooks plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new FreshBooksClient(clientId, clientSecret, refreshToken);
+      return cachedClient;
+
+      ctx.logger.info("freshbooks plugin: registering tools");
     }
-
-    let clientId: string, clientSecret: string, refreshToken: string;
-    try {
-      [clientId, clientSecret, refreshToken] = await Promise.all([
-        ctx.secrets.resolve(clientIdRef),
-        ctx.secrets.resolve(clientSecretRef),
-        ctx.secrets.resolve(refreshTokenRef),
-      ]);
-    } catch (err) {
-      ctx.logger.error(`freshbooks plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new FreshBooksClient(clientId, clientSecret, refreshToken);
-
-    ctx.logger.info("freshbooks plugin: registering tools");
 
     ctx.tools.register(
       "freshbooks_list_invoices",
@@ -53,6 +64,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listInvoices(
             p.page as number | undefined ?? 1,
@@ -78,6 +91,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getInvoice(p.invoice_id as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -115,6 +130,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.createInvoice({
             client_id: p.client_id as number,
@@ -143,6 +160,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listClients(
             p.page as number | undefined ?? 1,
@@ -168,6 +187,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getClient(p.client_id as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -194,6 +215,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.createClient({
             fname: p.fname as string,
@@ -222,6 +245,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listExpenses(
             p.page as number | undefined ?? 1,
@@ -247,6 +272,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getExpense(p.expense_id as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -269,6 +296,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listPayments(
             p.page as number | undefined ?? 1,
@@ -294,6 +323,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listTimeEntries(
             p.page as number | undefined ?? 1,

@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as StripePluginConfig;
+    let cachedClient: StripeClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.secretKeyRef) {
-      ctx.logger.error("Stripe plugin: secretKeyRef is required");
-      return;
+    async function getClient(): Promise<StripeClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as StripePluginConfig;
+
+      if (!config.secretKeyRef) {
+        configError = "Stripe plugin: secretKeyRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let secretKey: string;
+      try {
+        secretKey = await ctx.secrets.resolve(config.secretKeyRef);
+      } catch (err) {
+        configError = `Stripe plugin: failed to resolve secretKeyRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("Stripe plugin: secret resolved, registering tools");
+      cachedClient = new StripeClient(secretKey);
+      return cachedClient;
     }
-
-    let secretKey: string;
-    try {
-      secretKey = await ctx.secrets.resolve(config.secretKeyRef);
-    } catch (err) {
-      ctx.logger.error(`Stripe plugin: failed to resolve secretKeyRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("Stripe plugin: secret resolved, registering tools");
-    const client = new StripeClient(secretKey);
 
     ctx.tools.register(
       "stripe_list_customers",
@@ -46,6 +57,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { email?: string; limit?: number; starting_after?: string };
           const result = await client.listCustomers(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -68,6 +81,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: string };
           const result = await client.getCustomer(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -92,6 +107,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createCustomer(params as { email?: string; name?: string; phone?: string; description?: string });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -114,6 +131,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { customer?: string; status?: string; limit?: number };
           const result = await client.listSubscriptions(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -136,6 +155,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: string };
           const result = await client.getSubscription(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -160,6 +181,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { customer?: string; status?: string; limit?: number; subscription?: string };
           const result = await client.listInvoices(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -182,6 +205,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: string };
           const result = await client.getInvoice(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -204,6 +229,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { customer?: string; limit?: number };
           const result = await client.listPaymentIntents(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -226,6 +253,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: string };
           const result = await client.getPaymentIntent(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -248,6 +277,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { active?: boolean; limit?: number };
           const result = await client.listProducts(p);
           return { content: JSON.stringify(result, null, 2) };

@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as TypeformPluginConfig;
+    let cachedClient: TypeformClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiTokenRef) {
-      ctx.logger.error("Typeform plugin: apiTokenRef is required");
-      return;
+    async function getClient(): Promise<TypeformClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as TypeformPluginConfig;
+
+      if (!config.apiTokenRef) {
+        configError = "Typeform plugin: apiTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiToken: string;
+      try {
+        apiToken = await ctx.secrets.resolve(config.apiTokenRef);
+      } catch (err) {
+        configError = `Typeform plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("Typeform plugin: secret resolved, registering tools");
+      cachedClient = new TypeformClient(apiToken);
+      return cachedClient;
     }
-
-    let apiToken: string;
-    try {
-      apiToken = await ctx.secrets.resolve(config.apiTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Typeform plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("Typeform plugin: secret resolved, registering tools");
-    const client = new TypeformClient(apiToken);
 
     ctx.tools.register(
       "typeform_list_forms",
@@ -46,6 +57,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { page, page_size, search } = params as { page?: number; page_size?: number; search?: string };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.listForms({ page, page_size, search });
           return { content: JSON.stringify(result, null, 2) };
@@ -68,6 +81,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { form_id } = params as { form_id: string };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.getForm(form_id);
           return { content: JSON.stringify(result, null, 2) };
@@ -101,6 +116,8 @@ const plugin = definePlugin({
           form_id: string; page_size?: number; since?: string; until?: string; after?: string;
           before?: string; query?: string; completed?: boolean; sort?: string;
         };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.listResponses(form_id, { page_size, since, until, after, before, query, completed, sort });
           return { content: JSON.stringify(result, null, 2) };
@@ -124,6 +141,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { form_id, response_ids } = params as { form_id: string; response_ids: string[] };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.deleteResponse(form_id, response_ids);
           return { content: JSON.stringify(result ?? { deleted: true }, null, 2) };
@@ -146,6 +165,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { form_id } = params as { form_id: string };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.listWebhooks(form_id);
           return { content: JSON.stringify(result, null, 2) };
@@ -168,6 +189,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { form_id } = params as { form_id: string };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.getInsights(form_id);
           return { content: JSON.stringify(result, null, 2) };

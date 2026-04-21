@@ -14,28 +14,39 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as TeamsPluginConfig;
-    const { tenantId, clientIdRef, clientSecretRef } = config;
+    let cachedClient: TeamsClient | null = null;
+    let configError: string | null = null;
 
-    if (!tenantId || !clientIdRef || !clientSecretRef) {
-      ctx.logger.error("Teams plugin: tenantId, clientIdRef and clientSecretRef are required");
-      return;
+    async function getClient(): Promise<TeamsClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as TeamsPluginConfig;
+      const { tenantId, clientIdRef, clientSecretRef } = config;
+
+      if (!tenantId || !clientIdRef || !clientSecretRef) {
+        configError = "Teams plugin: tenantId, clientIdRef and clientSecretRef are required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let clientId: string;
+      let clientSecret: string;
+      try {
+        [clientId, clientSecret] = await Promise.all([
+          ctx.secrets.resolve(clientIdRef),
+          ctx.secrets.resolve(clientSecretRef),
+        ]);
+      } catch (err) {
+        configError = `Teams plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new TeamsClient(tenantId, clientId, clientSecret);
+      return cachedClient;
+      ctx.logger.info("Teams plugin: registering tools");
     }
-
-    let clientId: string;
-    let clientSecret: string;
-    try {
-      [clientId, clientSecret] = await Promise.all([
-        ctx.secrets.resolve(clientIdRef),
-        ctx.secrets.resolve(clientSecretRef),
-      ]);
-    } catch (err) {
-      ctx.logger.error(`Teams plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new TeamsClient(tenantId, clientId, clientSecret);
-    ctx.logger.info("Teams plugin: registering tools");
 
     ctx.tools.register(
       "teams_list_teams",
@@ -51,6 +62,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listTeams(p.limit as number | undefined);
           return { content: JSON.stringify(data, null, 2) };
@@ -73,6 +86,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listChannels(p.team_id as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -97,6 +112,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getChannelMessages(
             p.team_id as string,
@@ -125,6 +142,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.sendChannelMessage(
             p.team_id as string,
@@ -154,6 +173,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.replyToMessage(
             p.team_id as string,
@@ -180,6 +201,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listChats(p.limit as number | undefined);
           return { content: JSON.stringify(data, null, 2) };
@@ -203,6 +226,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getChatMessages(
             p.chat_id as string,
@@ -228,6 +253,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listTeamMembers(p.team_id as string);
           return { content: JSON.stringify(data, null, 2) };

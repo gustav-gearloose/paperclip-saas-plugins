@@ -13,27 +13,39 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as ZohoCrmPluginConfig;
+    let cachedClient: ZohoCrmClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.accessTokenRef) {
-      ctx.logger.error("Zoho CRM plugin: accessTokenRef is required");
-      return;
-    }
-    if (!config.domain) {
-      ctx.logger.error("Zoho CRM plugin: domain is required");
-      return;
-    }
+    async function getClient(): Promise<ZohoCrmClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
 
-    let accessToken: string;
-    try {
-      accessToken = await ctx.secrets.resolve(config.accessTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Zoho CRM plugin: failed to resolve accessTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
+const config = await ctx.config.get() as ZohoCrmPluginConfig;
 
-    const client = new ZohoCrmClient(accessToken, config.domain);
-    ctx.logger.info("Zoho CRM plugin: client initialized, registering tools");
+      if (!config.accessTokenRef) {
+        configError = "Zoho CRM plugin: accessTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+      if (!config.domain) {
+        configError = "Zoho CRM plugin: domain is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let accessToken: string;
+      try {
+        accessToken = await ctx.secrets.resolve(config.accessTokenRef);
+      } catch (err) {
+        configError = `Zoho CRM plugin: failed to resolve accessTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new ZohoCrmClient(accessToken, config.domain);
+      return cachedClient;
+      ctx.logger.info("Zoho CRM plugin: client initialized, registering tools");
+    }
 
     ctx.tools.register(
       "zoho_crm_list_records",
@@ -57,6 +69,8 @@ const plugin = definePlugin({
         const { module, page, per_page, sort_by, sort_order, fields } = params as {
           module: string; page?: number; per_page?: number; sort_by?: string; sort_order?: string; fields?: string;
         };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.listRecords(module, { page, per_page, sort_by, sort_order, fields });
           return { content: JSON.stringify(result, null, 2) };
@@ -80,6 +94,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { module, id } = params as { module: string; id: string };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.getRecord(module, id);
           return { content: JSON.stringify(result, null, 2) };
@@ -103,6 +119,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { module, data } = params as { module: string; data: Record<string, unknown> };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.createRecord(module, data);
           return { content: JSON.stringify(result, null, 2) };
@@ -127,6 +145,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { module, id, data } = params as { module: string; id: string; data: Record<string, unknown> };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.updateRecord(module, id, data);
           return { content: JSON.stringify(result, null, 2) };
@@ -150,6 +170,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { module, id } = params as { module: string; id: string };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.deleteRecord(module, id);
           return { content: JSON.stringify(result, null, 2) };
@@ -180,6 +202,8 @@ const plugin = definePlugin({
         const { module, criteria, email, phone, word, page, per_page } = params as {
           module: string; criteria?: string; email?: string; phone?: string; word?: string; page?: number; per_page?: number;
         };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.searchRecords(module, { criteria, email, phone, word, page, per_page });
           return { content: JSON.stringify(result, null, 2) };
@@ -203,6 +227,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { type, page, per_page } = params as { type?: string; page?: number; per_page?: number };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.listUsers({ type, page, per_page });
           return { content: JSON.stringify(result, null, 2) };
@@ -218,7 +244,11 @@ const plugin = definePlugin({
         parametersSchema: { type: "object", properties: {} },
       },
       async (): Promise<ToolResult> => {
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getOrganization();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -244,6 +274,8 @@ const plugin = definePlugin({
         const { page, per_page, sort_by, sort_order } = params as {
           page?: number; per_page?: number; sort_by?: string; sort_order?: string;
         };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.listDeals({ page, per_page, sort_by, sort_order });
           return { content: JSON.stringify(result, null, 2) };
@@ -271,6 +303,8 @@ const plugin = definePlugin({
         const { parentModule, parentId, noteTitle, noteContent } = params as {
           parentModule: string; parentId: string; noteTitle: string; noteContent: string;
         };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.createNote(parentModule, parentId, noteTitle, noteContent);
           return { content: JSON.stringify(result, null, 2) };
@@ -294,6 +328,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { page, per_page, type } = params as { page?: number; per_page?: number; type?: string };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.listActivities({ page, per_page, type });
           return { content: JSON.stringify(result, null, 2) };

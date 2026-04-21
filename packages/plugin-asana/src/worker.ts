@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as AsanaPluginConfig;
+    let cachedClient: AsanaClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.accessTokenRef) {
-      ctx.logger.error("Asana plugin: accessTokenRef is required");
-      return;
+    async function getClient(): Promise<AsanaClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as AsanaPluginConfig;
+
+      if (!config.accessTokenRef) {
+        configError = "Asana plugin: accessTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let accessToken: string;
+      try {
+        accessToken = await ctx.secrets.resolve(config.accessTokenRef);
+      } catch (err) {
+        configError = `Asana plugin: failed to resolve accessTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("Asana plugin: secret resolved, registering tools");
+      cachedClient = new AsanaClient(accessToken);
+      return cachedClient;
     }
-
-    let accessToken: string;
-    try {
-      accessToken = await ctx.secrets.resolve(config.accessTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Asana plugin: failed to resolve accessTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("Asana plugin: secret resolved, registering tools");
-    const client = new AsanaClient(accessToken);
 
     ctx.tools.register(
       "asana_get_me",
@@ -39,6 +50,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getMe();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -54,6 +67,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listWorkspaces();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -77,6 +92,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { workspace_gid: string; archived?: boolean; limit?: number };
           const result = await client.listProjects(p.workspace_gid, p);
           return { content: JSON.stringify(result, null, 2) };
@@ -99,6 +116,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { project_gid: string };
           const result = await client.getProject(p.project_gid);
           return { content: JSON.stringify(result, null, 2) };
@@ -123,6 +142,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { project_gid: string; completed?: boolean; limit?: number };
           const result = await client.listTasks(p.project_gid, p);
           return { content: JSON.stringify(result, null, 2) };
@@ -145,6 +166,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { task_gid: string };
           const result = await client.getTask(p.task_gid);
           return { content: JSON.stringify(result, null, 2) };
@@ -170,6 +193,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { workspace_gid: string; text: string; completed?: boolean; limit?: number };
           const result = await client.searchTasks(p.workspace_gid, p.text, p);
           return { content: JSON.stringify(result, null, 2) };
@@ -197,6 +222,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { workspace_gid: string; project_gid?: string; name: string; notes?: string; assignee_gid?: string; due_on?: string };
           const result = await client.createTask({
             workspaceGid: p.workspace_gid,
@@ -231,6 +258,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const { task_gid, ...data } = params as { task_gid: string } & Record<string, unknown>;
           const result = await client.updateTask(task_gid, data);
           return { content: JSON.stringify(result, null, 2) };
@@ -254,6 +283,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { task_gid: string; text: string };
           const result = await client.addTaskComment(p.task_gid, p.text);
           return { content: JSON.stringify(result, null, 2) };

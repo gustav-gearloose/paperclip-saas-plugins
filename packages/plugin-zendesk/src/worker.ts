@@ -14,24 +14,35 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as ZendeskPluginConfig;
-    const { subdomain, email, apiTokenRef } = config;
+    let cachedClient: ZendeskClient | null = null;
+    let configError: string | null = null;
 
-    if (!subdomain || !email || !apiTokenRef) {
-      ctx.logger.error("Zendesk plugin: subdomain, email, and apiTokenRef are required");
-      return;
+    async function getClient(): Promise<ZendeskClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as ZendeskPluginConfig;
+      const { subdomain, email, apiTokenRef } = config;
+
+      if (!subdomain || !email || !apiTokenRef) {
+        configError = "Zendesk plugin: subdomain, email, and apiTokenRef are required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiToken: string;
+      try {
+        apiToken = await ctx.secrets.resolve(apiTokenRef);
+      } catch (err) {
+        configError = `Zendesk plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new ZendeskClient(subdomain, email, apiToken);
+      return cachedClient;
+      ctx.logger.info("Zendesk plugin: registering tools");
     }
-
-    let apiToken: string;
-    try {
-      apiToken = await ctx.secrets.resolve(apiTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Zendesk plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new ZendeskClient(subdomain, email, apiToken);
-    ctx.logger.info("Zendesk plugin: registering tools");
 
     ctx.tools.register(
       "zendesk_list_tickets",
@@ -48,6 +59,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listTickets({
             status: p.status as string | undefined,
@@ -71,6 +84,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getTicket(p.ticket_id as number);
           return { content: JSON.stringify(data, null, 2) };
@@ -91,6 +106,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getTicketComments(p.ticket_id as number);
           return { content: JSON.stringify(data, null, 2) };
@@ -114,6 +131,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.searchTickets(p.query as string, {
             pageSize: p.page_size as number | undefined,
@@ -143,6 +162,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.createTicket({
             subject: p.subject as string,
@@ -172,6 +193,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listUsers({
             role: p.role as string | undefined,
@@ -195,6 +218,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.searchUsers(p.query as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -211,6 +236,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const data = await client.listGroups();
           return { content: JSON.stringify(data, null, 2) };
         } catch (err) { return errResult(err); }
@@ -238,6 +265,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.updateTicket(p.ticket_id as number, {
             status: p.status as "open" | "pending" | "hold" | "solved" | "closed" | undefined,
@@ -270,6 +299,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.addTicketComment(p.ticket_id as number, {
             body: p.body as string,

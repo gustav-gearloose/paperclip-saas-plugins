@@ -14,23 +14,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as ConfluencePluginConfig;
+    let cachedClient: ConfluenceClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiTokenRef || !config.email || !config.domain) {
-      ctx.logger.error("Confluence plugin: apiTokenRef, email, and domain are required");
-      return;
+    async function getClient(): Promise<ConfluenceClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as ConfluencePluginConfig;
+
+      if (!config.apiTokenRef || !config.email || !config.domain) {
+        configError = "Confluence plugin: apiTokenRef, email, and domain are required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiToken: string;
+      try {
+        apiToken = await ctx.secrets.resolve(config.apiTokenRef);
+      } catch (err) {
+        configError = `Confluence plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new ConfluenceClient(config.domain, config.email, apiToken);
+      return cachedClient;
+      ctx.logger.info(`Confluence plugin: initialized for ${config.domain}.atlassian.net, registering tools`);
     }
-
-    let apiToken: string;
-    try {
-      apiToken = await ctx.secrets.resolve(config.apiTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Confluence plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new ConfluenceClient(config.domain, config.email, apiToken);
-    ctx.logger.info(`Confluence plugin: initialized for ${config.domain}.atlassian.net, registering tools`);
 
     ctx.tools.register(
       "confluence_search_pages",
@@ -49,6 +60,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const results = await client.searchPages(params as Parameters<typeof client.searchPages>[0]);
           return { content: JSON.stringify(results, null, 2) };
         } catch (err) { return errResult(err); }
@@ -71,6 +84,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const results = await client.searchContent(params as Parameters<typeof client.searchContent>[0]);
           return { content: JSON.stringify(results, null, 2) };
         } catch (err) { return errResult(err); }
@@ -93,6 +108,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const page = await client.getPage(params as Parameters<typeof client.getPage>[0]);
           return { content: JSON.stringify(page, null, 2) };
         } catch (err) { return errResult(err); }
@@ -115,6 +132,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { title: string; space_key: string };
           const page = await client.getPageByTitle(p);
           return { content: JSON.stringify(page, null, 2) };
@@ -140,6 +159,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const page = await client.createPage(params as Parameters<typeof client.createPage>[0]);
           return { content: JSON.stringify(page, null, 2) };
         } catch (err) { return errResult(err); }
@@ -164,6 +185,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const page = await client.updatePage(params as Parameters<typeof client.updatePage>[0]);
           return { content: JSON.stringify(page, null, 2) };
         } catch (err) { return errResult(err); }
@@ -185,6 +208,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { page_id: string };
           const result = await client.deletePage(p.page_id);
           return { content: JSON.stringify(result) };
@@ -208,6 +233,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const results = await client.listChildren(params as Parameters<typeof client.listChildren>[0]);
           return { content: JSON.stringify(results, null, 2) };
         } catch (err) { return errResult(err); }
@@ -229,6 +256,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const results = await client.listSpaces(params as Parameters<typeof client.listSpaces>[0]);
           return { content: JSON.stringify(results, null, 2) };
         } catch (err) { return errResult(err); }
@@ -250,6 +279,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { space_key: string };
           const space = await client.getSpace(p.space_key);
           return { content: JSON.stringify(space, null, 2) };
@@ -273,6 +304,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.addComment(params as Parameters<typeof client.addComment>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -295,6 +328,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const results = await client.listComments(params as Parameters<typeof client.listComments>[0]);
           return { content: JSON.stringify(results, null, 2) };
         } catch (err) { return errResult(err); }

@@ -13,27 +13,38 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as TrelloPluginConfig;
+    let cachedClient: TrelloClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiKeyRef || !config.apiTokenRef) {
-      ctx.logger.error("Trello plugin: apiKeyRef and apiTokenRef are required");
-      return;
+    async function getClient(): Promise<TrelloClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as TrelloPluginConfig;
+
+      if (!config.apiKeyRef || !config.apiTokenRef) {
+        configError = "Trello plugin: apiKeyRef and apiTokenRef are required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiKey: string;
+      let apiToken: string;
+      try {
+        [apiKey, apiToken] = await Promise.all([
+          ctx.secrets.resolve(config.apiKeyRef),
+          ctx.secrets.resolve(config.apiTokenRef),
+        ]);
+      } catch (err) {
+        configError = `Trello plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("Trello plugin: secrets resolved, registering tools");
+      cachedClient = new TrelloClient({ apiKey, apiToken });
+      return cachedClient;
     }
-
-    let apiKey: string;
-    let apiToken: string;
-    try {
-      [apiKey, apiToken] = await Promise.all([
-        ctx.secrets.resolve(config.apiKeyRef),
-        ctx.secrets.resolve(config.apiTokenRef),
-      ]);
-    } catch (err) {
-      ctx.logger.error(`Trello plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("Trello plugin: secrets resolved, registering tools");
-    const client = new TrelloClient({ apiKey, apiToken });
 
     ctx.tools.register(
       "trello_list_boards",

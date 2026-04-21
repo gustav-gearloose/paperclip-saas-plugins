@@ -12,24 +12,35 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as DropboxPluginConfig;
-    const { accessTokenRef } = config;
+    let cachedClient: DropboxClient | null = null;
+    let configError: string | null = null;
 
-    if (!accessTokenRef) {
-      ctx.logger.error("Dropbox plugin: accessTokenRef is required");
-      return;
+    async function getClient(): Promise<DropboxClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as DropboxPluginConfig;
+      const { accessTokenRef } = config;
+
+      if (!accessTokenRef) {
+        configError = "Dropbox plugin: accessTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let accessToken: string;
+      try {
+        accessToken = await ctx.secrets.resolve(accessTokenRef);
+      } catch (err) {
+        configError = `Dropbox plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new DropboxClient(accessToken);
+      return cachedClient;
+      ctx.logger.info("Dropbox plugin: initialized, registering tools");
     }
-
-    let accessToken: string;
-    try {
-      accessToken = await ctx.secrets.resolve(accessTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Dropbox plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new DropboxClient(accessToken);
-    ctx.logger.info("Dropbox plugin: initialized, registering tools");
 
     ctx.tools.register(
       "dropbox_list_folder",
@@ -47,6 +58,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const entries = await client.listFolder(params as Parameters<typeof client.listFolder>[0]);
           return { content: JSON.stringify(entries, null, 2) };
         } catch (err) { return errResult(err); }
@@ -68,6 +81,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getMetadata(params as Parameters<typeof client.getMetadata>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -92,6 +107,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const results = await client.search(params as Parameters<typeof client.search>[0]);
           return { content: JSON.stringify(results, null, 2) };
         } catch (err) { return errResult(err); }
@@ -113,6 +130,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { path: string };
           const content = await client.download(p);
           return { content };
@@ -138,6 +157,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.upload(params as Parameters<typeof client.upload>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -160,6 +181,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createFolder(params as Parameters<typeof client.createFolder>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -181,6 +204,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.delete(params as Parameters<typeof client.delete>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -204,6 +229,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.move(params as Parameters<typeof client.move>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -227,6 +254,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.copy(params as Parameters<typeof client.copy>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -249,6 +278,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createSharedLink(params as Parameters<typeof client.createSharedLink>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -269,6 +300,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const links = await client.listSharedLinks(params as Parameters<typeof client.listSharedLinks>[0]);
           return { content: JSON.stringify(links, null, 2) };
         } catch (err) { return errResult(err); }
@@ -287,6 +320,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const [account, usage] = await Promise.all([
             client.getCurrentAccount(),
             client.getSpaceUsage(),

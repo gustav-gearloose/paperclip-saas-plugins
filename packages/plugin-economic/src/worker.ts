@@ -13,28 +13,39 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as EconomicPluginConfig;
-    const { appSecretTokenRef, agreementGrantTokenRef } = config;
+    let cachedClient: EconomicClient | null = null;
+    let configError: string | null = null;
 
-    if (!appSecretTokenRef || !agreementGrantTokenRef) {
-      ctx.logger.error("e-conomic plugin: appSecretTokenRef and agreementGrantTokenRef are required");
-      return;
+    async function getClient(): Promise<EconomicClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as EconomicPluginConfig;
+      const { appSecretTokenRef, agreementGrantTokenRef } = config;
+
+      if (!appSecretTokenRef || !agreementGrantTokenRef) {
+        configError = "e-conomic plugin: appSecretTokenRef and agreementGrantTokenRef are required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let appSecret: string, grantToken: string;
+      try {
+        [appSecret, grantToken] = await Promise.all([
+          ctx.secrets.resolve(appSecretTokenRef),
+          ctx.secrets.resolve(agreementGrantTokenRef),
+        ]);
+      } catch (err) {
+        configError = `e-conomic plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new EconomicClient(appSecret, grantToken);
+      return cachedClient;
+
+      ctx.logger.info("e-conomic plugin: registering tools");
     }
-
-    let appSecret: string, grantToken: string;
-    try {
-      [appSecret, grantToken] = await Promise.all([
-        ctx.secrets.resolve(appSecretTokenRef),
-        ctx.secrets.resolve(agreementGrantTokenRef),
-      ]);
-    } catch (err) {
-      ctx.logger.error(`e-conomic plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new EconomicClient(appSecret, grantToken);
-
-    ctx.logger.info("e-conomic plugin: registering tools");
 
     ctx.tools.register(
       "economic_list_invoices",
@@ -53,6 +64,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const status = (p.status as string) ?? "booked";
           const opts = {
@@ -96,6 +109,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const type = (p.type as string) ?? "booked";
           const number = p.invoice_number as number;
@@ -122,6 +137,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listCustomers({
             query: p.query as string | undefined,
@@ -147,6 +164,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getCustomer(p.customer_number as number);
           return { content: JSON.stringify(data, null, 2) };
@@ -168,6 +187,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listAccounts({ pageSize: p.page_size as number | undefined });
           return { content: JSON.stringify(data, null, 2) };
@@ -190,6 +211,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listProducts({
             query: p.query as string | undefined,
@@ -209,6 +232,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const data = await client.getCompanyInfo();
           return { content: JSON.stringify(data, null, 2) };
         } catch (err) { return errResult(err); }
@@ -251,6 +276,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const lines = (p.lines as Array<Record<string, unknown>>).map((l, i) => ({
             lineNumber: i + 1,
@@ -292,6 +319,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const journalNumber = p.journal_number as number | undefined;
           const data = journalNumber
@@ -326,6 +355,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.createCustomer({
             name: p.name as string,
@@ -359,6 +390,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.bookDraftInvoice(p.draft_invoice_number as number);
           return { content: JSON.stringify(data, null, 2) };

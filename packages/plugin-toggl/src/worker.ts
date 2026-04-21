@@ -12,24 +12,35 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as TogglPluginConfig;
-    const { apiTokenRef } = config;
+    let cachedClient: TogglClient | null = null;
+    let configError: string | null = null;
 
-    if (!apiTokenRef) {
-      ctx.logger.error("Toggl plugin: apiTokenRef is required");
-      return;
+    async function getClient(): Promise<TogglClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as TogglPluginConfig;
+      const { apiTokenRef } = config;
+
+      if (!apiTokenRef) {
+        configError = "Toggl plugin: apiTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiToken: string;
+      try {
+        apiToken = await ctx.secrets.resolve(apiTokenRef);
+      } catch (err) {
+        configError = `Toggl plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new TogglClient(apiToken);
+      return cachedClient;
+      ctx.logger.info("Toggl plugin: initialized, registering tools");
     }
-
-    let apiToken: string;
-    try {
-      apiToken = await ctx.secrets.resolve(apiTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Toggl plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new TogglClient(apiToken);
-    ctx.logger.info("Toggl plugin: initialized, registering tools");
 
     ctx.tools.register(
       "toggl_get_me",
@@ -40,6 +51,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           return { content: JSON.stringify(await client.getMe(), null, 2) };
         } catch (err) { return errResult(err); }
       }
@@ -54,6 +67,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           return { content: JSON.stringify(await client.getWorkspaces(), null, 2) };
         } catch (err) { return errResult(err); }
       }
@@ -74,6 +89,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { start_date?: string; end_date?: string };
           return { content: JSON.stringify(await client.getTimeEntries({ startDate: p.start_date, endDate: p.end_date }), null, 2) };
         } catch (err) { return errResult(err); }
@@ -89,6 +106,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           return { content: JSON.stringify(await client.getCurrentTimeEntry(), null, 2) };
         } catch (err) { return errResult(err); }
       }
@@ -113,6 +132,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { workspace_id: number; description?: string; project_id?: number; tags?: string[]; billable?: boolean };
           const result = await client.startTimeEntry({
             workspaceId: p.workspace_id,
@@ -142,6 +163,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { workspace_id: number; time_entry_id: number };
           return { content: JSON.stringify(await client.stopTimeEntry(p.workspace_id, p.time_entry_id), null, 2) };
         } catch (err) { return errResult(err); }
@@ -169,6 +192,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { workspace_id: number; start: string; duration_seconds: number; description?: string; project_id?: number; tags?: string[]; billable?: boolean };
           const result = await client.createTimeEntry({
             workspaceId: p.workspace_id,
@@ -200,6 +225,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { workspace_id: number; active?: boolean };
           return { content: JSON.stringify(await client.getProjects(p.workspace_id, { active: p.active }), null, 2) };
         } catch (err) { return errResult(err); }
@@ -226,6 +253,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { workspace_id: number; name: string; client_id?: number; color?: string; billable?: boolean; active?: boolean };
           const result = await client.createProject(p.workspace_id, {
             name: p.name,
@@ -254,6 +283,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { workspace_id: number };
           return { content: JSON.stringify(await client.getClients(p.workspace_id), null, 2) };
         } catch (err) { return errResult(err); }
@@ -278,6 +309,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { workspace_id: number; start_date: string; end_date: string; group_by?: string };
           const result = await client.getSummaryReport(p.workspace_id, {
             startDate: p.start_date,

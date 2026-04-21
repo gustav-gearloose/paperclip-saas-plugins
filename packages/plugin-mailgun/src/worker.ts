@@ -14,27 +14,39 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as MailgunPluginConfig;
+    let cachedClient: MailgunClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiKeyRef) {
-      ctx.logger.error("Mailgun plugin: apiKeyRef is required");
-      return;
-    }
-    if (!config.domain) {
-      ctx.logger.error("Mailgun plugin: domain is required");
-      return;
-    }
+    async function getClient(): Promise<MailgunClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
 
-    let apiKey: string;
-    try {
-      apiKey = await ctx.secrets.resolve(config.apiKeyRef);
-    } catch (err) {
-      ctx.logger.error(`Mailgun plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
+const config = await ctx.config.get() as MailgunPluginConfig;
 
-    const client = new MailgunClient(apiKey, config.domain, config.region ?? "us");
-    ctx.logger.info("Mailgun plugin: client initialized, registering tools");
+      if (!config.apiKeyRef) {
+        configError = "Mailgun plugin: apiKeyRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+      if (!config.domain) {
+        configError = "Mailgun plugin: domain is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiKey: string;
+      try {
+        apiKey = await ctx.secrets.resolve(config.apiKeyRef);
+      } catch (err) {
+        configError = `Mailgun plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new MailgunClient(apiKey, config.domain, config.region ?? "us");
+      return cachedClient;
+      ctx.logger.info("Mailgun plugin: client initialized, registering tools");
+    }
 
     ctx.tools.register(
       "mailgun_send_message",
@@ -196,6 +208,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getDomain();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

@@ -13,24 +13,35 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as BambooHRPluginConfig;
-    const { apiKeyRef, domain } = config;
+    let cachedClient: BambooHRClient | null = null;
+    let configError: string | null = null;
 
-    if (!apiKeyRef || !domain) {
-      ctx.logger.error("BambooHR plugin: apiKeyRef and domain are required");
-      return;
+    async function getClient(): Promise<BambooHRClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as BambooHRPluginConfig;
+      const { apiKeyRef, domain } = config;
+
+      if (!apiKeyRef || !domain) {
+        configError = "BambooHR plugin: apiKeyRef and domain are required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiKey: string;
+      try {
+        apiKey = await ctx.secrets.resolve(apiKeyRef);
+      } catch (err) {
+        configError = `BambooHR plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new BambooHRClient(apiKey, domain);
+      return cachedClient;
+      ctx.logger.info(`BambooHR plugin: initialized for ${domain}.bamboohr.com, registering tools`);
     }
-
-    let apiKey: string;
-    try {
-      apiKey = await ctx.secrets.resolve(apiKeyRef);
-    } catch (err) {
-      ctx.logger.error(`BambooHR plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new BambooHRClient(apiKey, domain);
-    ctx.logger.info(`BambooHR plugin: initialized for ${domain}.bamboohr.com, registering tools`);
 
     ctx.tools.register(
       "bamboohr_get_directory",
@@ -41,6 +52,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getDirectory();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -63,6 +76,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getEmployee(params as { id: number; fields?: string });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -90,6 +105,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number } & Record<string, string>;
           const { id, ...rest } = p;
           const result = await client.updateEmployee(id, rest);
@@ -116,6 +133,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getTimeOffRequests(params as { start: string; end: string; employeeId?: number; status?: string });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -131,6 +150,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getTimeOffTypes();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -152,6 +173,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { employeeId: number };
           const result = await client.getTimeOffBalance(p.employeeId);
           return { content: JSON.stringify(result, null, 2) };
@@ -179,6 +202,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as {
             employeeId: number;
             timeOffTypeId: number;
@@ -215,6 +240,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.whoIsOut(params as { start?: string; end?: string });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -240,6 +267,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { fields: string[] };
           const result = await client.runCustomReport({ fields: p.fields });
           return { content: JSON.stringify(result, null, 2) };
@@ -256,6 +285,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listDepartments();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

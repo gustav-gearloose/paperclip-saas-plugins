@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as SendGridPluginConfig;
+    let cachedClient: SendGridClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiKeyRef) {
-      ctx.logger.error("SendGrid plugin: apiKeyRef is required");
-      return;
+    async function getClient(): Promise<SendGridClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as SendGridPluginConfig;
+
+      if (!config.apiKeyRef) {
+        configError = "SendGrid plugin: apiKeyRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiKey: string;
+      try {
+        apiKey = await ctx.secrets.resolve(config.apiKeyRef);
+      } catch (err) {
+        configError = `SendGrid plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new SendGridClient(apiKey);
+      return cachedClient;
+      ctx.logger.info("SendGrid plugin: client initialized, registering tools");
     }
-
-    let apiKey: string;
-    try {
-      apiKey = await ctx.secrets.resolve(config.apiKeyRef);
-    } catch (err) {
-      ctx.logger.error(`SendGrid plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new SendGridClient(apiKey);
-    ctx.logger.info("SendGrid plugin: client initialized, registering tools");
 
     ctx.tools.register(
       "sendgrid_send_email",

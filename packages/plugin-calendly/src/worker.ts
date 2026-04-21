@@ -12,35 +12,47 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as CalendlyPluginConfig;
+    let cachedClient: CalendlyClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiTokenRef) {
-      ctx.logger.error("Calendly plugin: apiTokenRef is required");
-      return;
+    async function getClient(): Promise<CalendlyClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as CalendlyPluginConfig;
+
+      if (!config.apiTokenRef) {
+        configError = "Calendly plugin: apiTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiToken: string;
+      try {
+        apiToken = await ctx.secrets.resolve(config.apiTokenRef);
+      } catch (err) {
+        configError = `Calendly plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("Calendly plugin: secret resolved, resolving organization URI");
+      cachedClient = new CalendlyClient(apiToken);
+      return cachedClient;
+
+      // Resolve organization URI once at startup — all list endpoints require it
+      let organizationUri: string;
+      try {
+        const me = await client.getCurrentUser();
+        organizationUri = me.resource.organization;
+      } catch (err) {
+        configError = `Calendly plugin: failed to resolve organization URI: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info(`Calendly plugin: organization URI resolved, registering tools`);
     }
-
-    let apiToken: string;
-    try {
-      apiToken = await ctx.secrets.resolve(config.apiTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Calendly plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("Calendly plugin: secret resolved, resolving organization URI");
-    const client = new CalendlyClient(apiToken);
-
-    // Resolve organization URI once at startup — all list endpoints require it
-    let organizationUri: string;
-    try {
-      const me = await client.getCurrentUser();
-      organizationUri = me.resource.organization;
-    } catch (err) {
-      ctx.logger.error(`Calendly plugin: failed to resolve organization URI: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info(`Calendly plugin: organization URI resolved, registering tools`);
 
     ctx.tools.register(
       "calendly_get_current_user",
@@ -51,6 +63,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getCurrentUser();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

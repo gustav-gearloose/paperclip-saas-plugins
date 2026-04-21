@@ -15,27 +15,38 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as OutlookPluginConfig;
-    const { tenantId, userPrincipalName, clientIdRef, clientSecretRef } = config;
+    let cachedClient: GraphClient | null = null;
+    let configError: string | null = null;
 
-    if (!tenantId || !userPrincipalName || !clientIdRef || !clientSecretRef) {
-      ctx.logger.error("Outlook plugin: tenantId, userPrincipalName, clientIdRef, clientSecretRef are all required");
-      return;
+    async function getClient(): Promise<GraphClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as OutlookPluginConfig;
+      const { tenantId, userPrincipalName, clientIdRef, clientSecretRef } = config;
+
+      if (!tenantId || !userPrincipalName || !clientIdRef || !clientSecretRef) {
+        configError = "Outlook plugin: tenantId, userPrincipalName, clientIdRef, clientSecretRef are all required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let clientId: string, clientSecret: string;
+      try {
+        [clientId, clientSecret] = await Promise.all([
+          ctx.secrets.resolve(clientIdRef),
+          ctx.secrets.resolve(clientSecretRef),
+        ]);
+      } catch (err) {
+        configError = `Outlook plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new GraphClient({ tenantId, clientId, clientSecret, defaultUser: userPrincipalName });
+      return cachedClient;
+      ctx.logger.info(`Outlook plugin: initialized for ${userPrincipalName}, registering tools`);
     }
-
-    let clientId: string, clientSecret: string;
-    try {
-      [clientId, clientSecret] = await Promise.all([
-        ctx.secrets.resolve(clientIdRef),
-        ctx.secrets.resolve(clientSecretRef),
-      ]);
-    } catch (err) {
-      ctx.logger.error(`Outlook plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new GraphClient({ tenantId, clientId, clientSecret, defaultUser: userPrincipalName });
-    ctx.logger.info(`Outlook plugin: initialized for ${userPrincipalName}, registering tools`);
 
     ctx.tools.register(
       "outlook_list_messages",
@@ -55,6 +66,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const messages = await client.listMessages(params as Parameters<typeof client.listMessages>[0]);
           return { content: JSON.stringify(messages, null, 2) };
         } catch (err) { return errResult(err); }
@@ -77,6 +90,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { message_id: string; user?: string };
           const msg = await client.getMessage(p.message_id, p.user);
           return { content: JSON.stringify(msg, null, 2) };
@@ -104,6 +119,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.sendMessage(params as Parameters<typeof client.sendMessage>[0]);
           return { content: JSON.stringify(result) };
         } catch (err) { return errResult(err); }
@@ -127,6 +144,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { message_id: string; body: string; user?: string };
           const result = await client.replyMessage(p.message_id, p.body, p.user);
           return { content: JSON.stringify(result) };
@@ -148,6 +167,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { user?: string };
           const folders = await client.listFolders(p.user);
           return { content: JSON.stringify(folders, null, 2) };
@@ -172,6 +193,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const events = await client.listEvents(params as Parameters<typeof client.listEvents>[0]);
           return { content: JSON.stringify(events, null, 2) };
         } catch (err) { return errResult(err); }
@@ -194,6 +217,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { event_id: string; user?: string };
           const event = await client.getEvent(p.event_id, p.user);
           return { content: JSON.stringify(event, null, 2) };
@@ -223,6 +248,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const event = await client.createEvent(params as Parameters<typeof client.createEvent>[0]);
           return { content: JSON.stringify(event, null, 2) };
         } catch (err) { return errResult(err); }
@@ -251,6 +278,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const event = await client.updateEvent(params as Parameters<typeof client.updateEvent>[0]);
           return { content: JSON.stringify(event, null, 2) };
         } catch (err) { return errResult(err); }
@@ -273,6 +302,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { event_id: string; user?: string };
           const result = await client.deleteEvent(p.event_id, p.user);
           return { content: JSON.stringify(result) };

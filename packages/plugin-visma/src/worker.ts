@@ -14,29 +14,40 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as VismaPluginConfig;
-    const { clientIdRef, clientSecretRef, refreshTokenRef } = config;
+    let cachedClient: VismaClient | null = null;
+    let configError: string | null = null;
 
-    if (!clientIdRef || !clientSecretRef || !refreshTokenRef) {
-      ctx.logger.error("visma plugin: clientIdRef, clientSecretRef, and refreshTokenRef are required");
-      return;
+    async function getClient(): Promise<VismaClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as VismaPluginConfig;
+      const { clientIdRef, clientSecretRef, refreshTokenRef } = config;
+
+      if (!clientIdRef || !clientSecretRef || !refreshTokenRef) {
+        configError = "visma plugin: clientIdRef, clientSecretRef, and refreshTokenRef are required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let clientId: string, clientSecret: string, refreshToken: string;
+      try {
+        [clientId, clientSecret, refreshToken] = await Promise.all([
+          ctx.secrets.resolve(clientIdRef),
+          ctx.secrets.resolve(clientSecretRef),
+          ctx.secrets.resolve(refreshTokenRef),
+        ]);
+      } catch (err) {
+        configError = `visma plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new VismaClient(clientId, clientSecret, refreshToken);
+      return cachedClient;
+
+      ctx.logger.info("visma plugin: registering tools");
     }
-
-    let clientId: string, clientSecret: string, refreshToken: string;
-    try {
-      [clientId, clientSecret, refreshToken] = await Promise.all([
-        ctx.secrets.resolve(clientIdRef),
-        ctx.secrets.resolve(clientSecretRef),
-        ctx.secrets.resolve(refreshTokenRef),
-      ]);
-    } catch (err) {
-      ctx.logger.error(`visma plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new VismaClient(clientId, clientSecret, refreshToken);
-
-    ctx.logger.info("visma plugin: registering tools");
 
     ctx.tools.register(
       "visma_list_invoices",
@@ -52,6 +63,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listCustomerInvoices({ page: p.page as number | undefined });
           return { content: JSON.stringify(data, null, 2) };
@@ -74,6 +87,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getCustomerInvoice(p.invoice_id as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -111,6 +126,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const rows = (p.rows as Array<Record<string, unknown>>).map(r => ({
             ArticleId: r.article_id,
@@ -144,6 +161,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listCustomers({ page: p.page as number | undefined });
           return { content: JSON.stringify(data, null, 2) };
@@ -166,6 +185,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getCustomer(p.customer_id as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -191,6 +212,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const customer: Record<string, unknown> = { Name: p.name };
           if (p.email) customer.Email = p.email;
@@ -216,6 +239,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listArticles({ page: p.page as number | undefined });
           return { content: JSON.stringify(data, null, 2) };
@@ -238,6 +263,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getAccountBalances(p.date as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -259,6 +286,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listVouchers({ page: p.page as number | undefined });
           return { content: JSON.stringify(data, null, 2) };
@@ -275,6 +304,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const data = await client.listFiscalYears();
           return { content: JSON.stringify(data, null, 2) };
         } catch (err) { return errResult(err); }

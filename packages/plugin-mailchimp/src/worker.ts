@@ -13,27 +13,39 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as MailchimpPluginConfig;
+    let cachedClient: MailchimpClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiKeyRef) {
-      ctx.logger.error("Mailchimp plugin: apiKeyRef is required");
-      return;
-    }
-    if (!config.serverPrefix) {
-      ctx.logger.error("Mailchimp plugin: serverPrefix is required");
-      return;
-    }
+    async function getClient(): Promise<MailchimpClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
 
-    let apiKey: string;
-    try {
-      apiKey = await ctx.secrets.resolve(config.apiKeyRef);
-    } catch (err) {
-      ctx.logger.error(`Mailchimp plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
+const config = await ctx.config.get() as MailchimpPluginConfig;
 
-    const client = new MailchimpClient(apiKey, config.serverPrefix);
-    ctx.logger.info("Mailchimp plugin: client initialized, registering tools");
+      if (!config.apiKeyRef) {
+        configError = "Mailchimp plugin: apiKeyRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+      if (!config.serverPrefix) {
+        configError = "Mailchimp plugin: serverPrefix is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiKey: string;
+      try {
+        apiKey = await ctx.secrets.resolve(config.apiKeyRef);
+      } catch (err) {
+        configError = `Mailchimp plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new MailchimpClient(apiKey, config.serverPrefix);
+      return cachedClient;
+      ctx.logger.info("Mailchimp plugin: client initialized, registering tools");
+    }
 
     ctx.tools.register(
       "mailchimp_get_account_info",
@@ -44,6 +56,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getAccountInfo();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

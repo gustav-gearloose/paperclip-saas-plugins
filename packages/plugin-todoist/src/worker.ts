@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as TodoistPluginConfig;
+    let cachedClient: TodoistClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiTokenRef) {
-      ctx.logger.error("Todoist plugin: apiTokenRef is required");
-      return;
+    async function getClient(): Promise<TodoistClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as TodoistPluginConfig;
+
+      if (!config.apiTokenRef) {
+        configError = "Todoist plugin: apiTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiToken: string;
+      try {
+        apiToken = await ctx.secrets.resolve(config.apiTokenRef);
+      } catch (err) {
+        configError = `Todoist plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("Todoist plugin: secret resolved, registering tools");
+      cachedClient = new TodoistClient(apiToken);
+      return cachedClient;
     }
-
-    let apiToken: string;
-    try {
-      apiToken = await ctx.secrets.resolve(config.apiTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Todoist plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("Todoist plugin: secret resolved, registering tools");
-    const client = new TodoistClient(apiToken);
 
     ctx.tools.register(
       "todoist_list_projects",
@@ -39,6 +50,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listProjects();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -247,6 +260,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listLabels();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

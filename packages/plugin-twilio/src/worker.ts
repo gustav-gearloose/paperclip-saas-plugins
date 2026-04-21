@@ -13,27 +13,39 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as TwilioPluginConfig;
+    let cachedClient: TwilioClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.authTokenRef) {
-      ctx.logger.error("Twilio plugin: authTokenRef is required");
-      return;
-    }
-    if (!config.accountSid) {
-      ctx.logger.error("Twilio plugin: accountSid is required");
-      return;
-    }
+    async function getClient(): Promise<TwilioClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
 
-    let authToken: string;
-    try {
-      authToken = await ctx.secrets.resolve(config.authTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Twilio plugin: failed to resolve authTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
+const config = await ctx.config.get() as TwilioPluginConfig;
 
-    const client = new TwilioClient(config.accountSid, authToken);
-    ctx.logger.info("Twilio plugin: client initialized, registering tools");
+      if (!config.authTokenRef) {
+        configError = "Twilio plugin: authTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+      if (!config.accountSid) {
+        configError = "Twilio plugin: accountSid is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let authToken: string;
+      try {
+        authToken = await ctx.secrets.resolve(config.authTokenRef);
+      } catch (err) {
+        configError = `Twilio plugin: failed to resolve authTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new TwilioClient(config.accountSid, authToken);
+      return cachedClient;
+      ctx.logger.info("Twilio plugin: client initialized, registering tools");
+    }
 
     ctx.tools.register(
       "twilio_get_account_info",
@@ -43,7 +55,11 @@ const plugin = definePlugin({
         parametersSchema: { type: "object", properties: {} },
       },
       async (): Promise<ToolResult> => {
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getAccountInfo();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -67,6 +83,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { from, to, body } = params as { from: string; to: string; body: string };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.sendSms(from, to, body);
           return { content: JSON.stringify(result, null, 2) };
@@ -96,6 +114,8 @@ const plugin = definePlugin({
           PageSize?: number; To?: string; From?: string;
           DateSent?: string; DateSentAfter?: string; DateSentBefore?: string;
         };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.listMessages({ PageSize, To, From, DateSent, DateSentAfter, DateSentBefore });
           return { content: JSON.stringify(result, null, 2) };
@@ -118,6 +138,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { message_sid } = params as { message_sid: string };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.getMessage(message_sid);
           return { content: JSON.stringify(result, null, 2) };
@@ -133,7 +155,11 @@ const plugin = definePlugin({
         parametersSchema: { type: "object", properties: {} },
       },
       async (): Promise<ToolResult> => {
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listPhoneNumbers();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -162,6 +188,8 @@ const plugin = definePlugin({
           PageSize?: number; To?: string; From?: string;
           Status?: string; StartTimeAfter?: string; StartTimeBefore?: string;
         };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.listCalls({ PageSize, To, From, Status, StartTimeAfter, StartTimeBefore });
           return { content: JSON.stringify(result, null, 2) };
@@ -184,6 +212,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { call_sid } = params as { call_sid: string };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.getCall(call_sid);
           return { content: JSON.stringify(result, null, 2) };
@@ -208,6 +238,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         const { from, to, url } = params as { from: string; to: string; url: string };
+        const client = await getClient();
+        if (!client) return { error: "Plugin not configured." };
         try {
           const result = await client.makeCall(from, to, url);
           return { content: JSON.stringify(result, null, 2) };

@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as BrevoPluginConfig;
+    let cachedClient: BrevoClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiKeyRef) {
-      ctx.logger.error("Brevo plugin: apiKeyRef is required");
-      return;
+    async function getClient(): Promise<BrevoClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as BrevoPluginConfig;
+
+      if (!config.apiKeyRef) {
+        configError = "Brevo plugin: apiKeyRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiKey: string;
+      try {
+        apiKey = await ctx.secrets.resolve(config.apiKeyRef);
+      } catch (err) {
+        configError = `Brevo plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new BrevoClient(apiKey);
+      return cachedClient;
+      ctx.logger.info("Brevo plugin: client initialized, registering tools");
     }
-
-    let apiKey: string;
-    try {
-      apiKey = await ctx.secrets.resolve(config.apiKeyRef);
-    } catch (err) {
-      ctx.logger.error(`Brevo plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new BrevoClient(apiKey);
-    ctx.logger.info("Brevo plugin: client initialized, registering tools");
 
     ctx.tools.register(
       "brevo_get_account_info",
@@ -39,6 +50,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getAccountInfo();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

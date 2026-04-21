@@ -13,27 +13,39 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as ShopifyPluginConfig;
+    let cachedClient: ShopifyClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.shopDomain) {
-      ctx.logger.error("Shopify plugin: shopDomain is required");
-      return;
-    }
-    if (!config.accessTokenRef) {
-      ctx.logger.error("Shopify plugin: accessTokenRef is required");
-      return;
-    }
+    async function getClient(): Promise<ShopifyClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
 
-    let accessToken: string;
-    try {
-      accessToken = await ctx.secrets.resolve(config.accessTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Shopify plugin: failed to resolve accessTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
+const config = await ctx.config.get() as ShopifyPluginConfig;
 
-    ctx.logger.info("Shopify plugin: secret resolved, registering tools");
-    const client = new ShopifyClient(config.shopDomain, accessToken);
+      if (!config.shopDomain) {
+        configError = "Shopify plugin: shopDomain is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+      if (!config.accessTokenRef) {
+        configError = "Shopify plugin: accessTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let accessToken: string;
+      try {
+        accessToken = await ctx.secrets.resolve(config.accessTokenRef);
+      } catch (err) {
+        configError = `Shopify plugin: failed to resolve accessTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("Shopify plugin: secret resolved, registering tools");
+      cachedClient = new ShopifyClient(config.shopDomain, accessToken);
+      return cachedClient;
+    }
 
     ctx.tools.register(
       "shopify_list_orders",
@@ -52,6 +64,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { status?: string; financial_status?: string; fulfillment_status?: string; limit?: number };
           const result = await client.listOrders(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -74,6 +88,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number };
           const result = await client.getOrder(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -97,6 +113,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { status?: string; title?: string; limit?: number };
           const result = await client.listProducts(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -119,6 +137,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number };
           const result = await client.getProduct(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -145,6 +165,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const { id, ...data } = params as { id: number } & Record<string, unknown>;
           const result = await client.updateProduct(id, data);
           return { content: JSON.stringify(result, null, 2) };
@@ -167,6 +189,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { query?: string; limit?: number };
           const result = await client.listCustomers(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -189,6 +213,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number };
           const result = await client.getCustomer(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -208,6 +234,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getShop();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -226,6 +254,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listLocations();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -246,6 +276,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { limit?: number };
           const result = await client.listPriceRules(p);
           return { content: JSON.stringify(result, null, 2) };

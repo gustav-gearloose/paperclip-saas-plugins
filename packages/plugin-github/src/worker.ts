@@ -13,23 +13,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as GitHubPluginConfig;
+    let cachedClient: GitHubClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.tokenRef) {
-      ctx.logger.error("GitHub plugin: tokenRef is required");
-      return;
+    async function getClient(): Promise<GitHubClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as GitHubPluginConfig;
+
+      if (!config.tokenRef) {
+        configError = "GitHub plugin: tokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let token: string;
+      try {
+        token = await ctx.secrets.resolve(config.tokenRef);
+      } catch (err) {
+        configError = `GitHub plugin: failed to resolve tokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("GitHub plugin: secret resolved, registering tools");
+      cachedClient = new GitHubClient(token, config.owner ?? "");
+      return cachedClient;
     }
-
-    let token: string;
-    try {
-      token = await ctx.secrets.resolve(config.tokenRef);
-    } catch (err) {
-      ctx.logger.error(`GitHub plugin: failed to resolve tokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("GitHub plugin: secret resolved, registering tools");
-    const client = new GitHubClient(token, config.owner ?? "");
 
     ctx.tools.register(
       "github_list_repos",
@@ -47,6 +58,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { owner?: string; type?: string; limit?: number };
           const result = await client.listRepos(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -70,6 +83,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { owner?: string; repo: string };
           const result = await client.getRepo(p.owner, p.repo);
           return { content: JSON.stringify(result, null, 2) };
@@ -93,6 +108,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { query: string; limit?: number };
           const result = await client.searchIssues(p.query, p.limit ?? 20);
           return { content: JSON.stringify(result, null, 2) };
@@ -117,6 +134,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { owner?: string; repo: string; issue_number: number };
           const result = await client.getIssue(p.owner, p.repo, p.issue_number);
           return { content: JSON.stringify(result, null, 2) };
@@ -144,6 +163,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createIssue(params as {
             owner?: string;
             repo: string;
@@ -175,6 +196,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listPRs(params as { owner?: string; repo: string; state?: string; limit?: number });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -198,6 +221,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { owner?: string; repo: string; pr_number: number };
           const result = await client.getPR(p.owner, p.repo, p.pr_number);
           return { content: JSON.stringify(result, null, 2) };
@@ -223,6 +248,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.addComment(params as { owner?: string; repo: string; issue_number: number; body: string });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -245,6 +272,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { query: string; limit?: number };
           const result = await client.searchCode(p.query, p.limit ?? 10);
           return { content: JSON.stringify(result, null, 2) };
@@ -270,6 +299,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listCommits(params as { owner?: string; repo: string; branch?: string; limit?: number });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

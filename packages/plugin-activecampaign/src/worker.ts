@@ -13,27 +13,39 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as ActiveCampaignPluginConfig;
+    let cachedClient: ActiveCampaignClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiKeyRef) {
-      ctx.logger.error("ActiveCampaign plugin: apiKeyRef is required");
-      return;
-    }
-    if (!config.accountUrl) {
-      ctx.logger.error("ActiveCampaign plugin: accountUrl is required");
-      return;
-    }
+    async function getClient(): Promise<ActiveCampaignClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
 
-    let apiKey: string;
-    try {
-      apiKey = await ctx.secrets.resolve(config.apiKeyRef);
-    } catch (err) {
-      ctx.logger.error(`ActiveCampaign plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
+const config = await ctx.config.get() as ActiveCampaignPluginConfig;
 
-    const client = new ActiveCampaignClient(apiKey, config.accountUrl);
-    ctx.logger.info("ActiveCampaign plugin: client initialized, registering tools");
+      if (!config.apiKeyRef) {
+        configError = "ActiveCampaign plugin: apiKeyRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+      if (!config.accountUrl) {
+        configError = "ActiveCampaign plugin: accountUrl is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiKey: string;
+      try {
+        apiKey = await ctx.secrets.resolve(config.apiKeyRef);
+      } catch (err) {
+        configError = `ActiveCampaign plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new ActiveCampaignClient(apiKey, config.accountUrl);
+      return cachedClient;
+      ctx.logger.info("ActiveCampaign plugin: client initialized, registering tools");
+    }
 
     ctx.tools.register(
       "activecampaign_list_contacts",

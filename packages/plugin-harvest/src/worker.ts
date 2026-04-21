@@ -13,27 +13,39 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as HarvestPluginConfig;
+    let cachedClient: HarvestClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiTokenRef) {
-      ctx.logger.error("Harvest plugin: apiTokenRef is required");
-      return;
-    }
-    if (!config.accountId) {
-      ctx.logger.error("Harvest plugin: accountId is required");
-      return;
-    }
+    async function getClient(): Promise<HarvestClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
 
-    let apiToken: string;
-    try {
-      apiToken = await ctx.secrets.resolve(config.apiTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Harvest plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
+const config = await ctx.config.get() as HarvestPluginConfig;
 
-    ctx.logger.info("Harvest plugin: secret resolved, registering tools");
-    const client = new HarvestClient(apiToken, config.accountId);
+      if (!config.apiTokenRef) {
+        configError = "Harvest plugin: apiTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+      if (!config.accountId) {
+        configError = "Harvest plugin: accountId is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiToken: string;
+      try {
+        apiToken = await ctx.secrets.resolve(config.apiTokenRef);
+      } catch (err) {
+        configError = `Harvest plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("Harvest plugin: secret resolved, registering tools");
+      cachedClient = new HarvestClient(apiToken, config.accountId);
+      return cachedClient;
+    }
 
     ctx.tools.register(
       "harvest_list_time_entries",
@@ -259,6 +271,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getMe();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

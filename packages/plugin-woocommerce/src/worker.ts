@@ -14,33 +14,46 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as WooPluginConfig;
+    let cachedClient: WooCommerceClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.siteUrl) {
-      ctx.logger.error("WooCommerce plugin: siteUrl is required");
-      return;
-    }
-    if (!config.consumerKeyRef) {
-      ctx.logger.error("WooCommerce plugin: consumerKeyRef is required");
-      return;
-    }
-    if (!config.consumerSecretRef) {
-      ctx.logger.error("WooCommerce plugin: consumerSecretRef is required");
-      return;
-    }
+    async function getClient(): Promise<WooCommerceClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
 
-    let consumerKey: string;
-    let consumerSecret: string;
-    try {
-      consumerKey = await ctx.secrets.resolve(config.consumerKeyRef);
-      consumerSecret = await ctx.secrets.resolve(config.consumerSecretRef);
-    } catch (err) {
-      ctx.logger.error(`WooCommerce plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
+const config = await ctx.config.get() as WooPluginConfig;
 
-    ctx.logger.info("WooCommerce plugin: secrets resolved, registering tools");
-    const client = new WooCommerceClient(config.siteUrl, consumerKey, consumerSecret);
+      if (!config.siteUrl) {
+        configError = "WooCommerce plugin: siteUrl is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+      if (!config.consumerKeyRef) {
+        configError = "WooCommerce plugin: consumerKeyRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+      if (!config.consumerSecretRef) {
+        configError = "WooCommerce plugin: consumerSecretRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let consumerKey: string;
+      let consumerSecret: string;
+      try {
+        consumerKey = await ctx.secrets.resolve(config.consumerKeyRef);
+        consumerSecret = await ctx.secrets.resolve(config.consumerSecretRef);
+      } catch (err) {
+        configError = `WooCommerce plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("WooCommerce plugin: secrets resolved, registering tools");
+      cachedClient = new WooCommerceClient(config.siteUrl, consumerKey, consumerSecret);
+      return cachedClient;
+    }
 
     ctx.tools.register(
       "woocommerce_list_orders",
@@ -59,6 +72,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { status?: string; customer?: number; per_page?: number; page?: number };
           const result = await client.listOrders(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -81,6 +96,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number };
           const result = await client.getOrder(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -104,6 +121,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number; status: string };
           const result = await client.updateOrderStatus(p.id, p.status);
           return { content: JSON.stringify(result, null, 2) };
@@ -129,6 +148,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { status?: string; search?: string; category?: string; per_page?: number; page?: number };
           const result = await client.listProducts(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -151,6 +172,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number };
           const result = await client.getProduct(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -181,6 +204,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const { id, ...data } = params as { id: number } & Record<string, unknown>;
           const result = await client.updateProduct(id, data);
           return { content: JSON.stringify(result, null, 2) };
@@ -205,6 +230,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { search?: string; email?: string; per_page?: number; page?: number };
           const result = await client.listCustomers(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -227,6 +254,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number };
           const result = await client.getCustomer(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -250,6 +279,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { search?: string; per_page?: number; page?: number };
           const result = await client.listCoupons(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -276,6 +307,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { report: "sales" | "top_sellers" | "orders/totals" | "products/totals" | "customers/totals" };
           const result = await client.getReports(p.report);
           return { content: JSON.stringify(result, null, 2) };

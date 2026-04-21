@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as MondayPluginConfig;
+    let cachedClient: MondayClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiTokenRef) {
-      ctx.logger.error("monday.com plugin: apiTokenRef is required");
-      return;
+    async function getClient(): Promise<MondayClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as MondayPluginConfig;
+
+      if (!config.apiTokenRef) {
+        configError = "monday.com plugin: apiTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiToken: string;
+      try {
+        apiToken = await ctx.secrets.resolve(config.apiTokenRef);
+      } catch (err) {
+        configError = `monday.com plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("monday.com plugin: secret resolved, registering tools");
+      cachedClient = new MondayClient(apiToken);
+      return cachedClient;
     }
-
-    let apiToken: string;
-    try {
-      apiToken = await ctx.secrets.resolve(config.apiTokenRef);
-    } catch (err) {
-      ctx.logger.error(`monday.com plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("monday.com plugin: secret resolved, registering tools");
-    const client = new MondayClient(apiToken);
 
     ctx.tools.register(
       "monday_list_boards",
@@ -50,6 +61,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { limit?: number; page?: number; workspace_ids?: number[] };
           const result = await client.listBoards(p);
           return { content: JSON.stringify(result, null, 2) };
@@ -72,6 +85,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number };
           const result = await client.getBoard(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -96,6 +111,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { board_id: number; limit?: number; page?: number };
           const result = await client.listItems(p.board_id, p);
           return { content: JSON.stringify(result, null, 2) };
@@ -118,6 +135,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number };
           const result = await client.getItem(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -141,6 +160,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { board_id: number; query: string };
           const result = await client.searchItems(p.board_id, p.query);
           return { content: JSON.stringify(result, null, 2) };
@@ -170,6 +191,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { board_id: number; group_id?: string; name: string; column_values?: Record<string, unknown> };
           const result = await client.createItem({
             boardId: p.board_id,
@@ -200,6 +223,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { item_id: number; board_id: number; column_id: string; value: string };
           const result = await client.changeColumnValue({
             itemId: p.item_id,
@@ -228,6 +253,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { item_id: number; body: string };
           const result = await client.addUpdate(p.item_id, p.body);
           return { content: JSON.stringify(result, null, 2) };
@@ -247,6 +274,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listWorkspaces();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -267,6 +296,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { limit?: number };
           const result = await client.getUsers(p);
           return { content: JSON.stringify(result, null, 2) };

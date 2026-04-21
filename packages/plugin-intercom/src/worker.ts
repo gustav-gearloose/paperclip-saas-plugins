@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as IntercomPluginConfig;
+    let cachedClient: IntercomClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.accessTokenRef) {
-      ctx.logger.error("Intercom plugin: accessTokenRef is required");
-      return;
+    async function getClient(): Promise<IntercomClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as IntercomPluginConfig;
+
+      if (!config.accessTokenRef) {
+        configError = "Intercom plugin: accessTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let accessToken: string;
+      try {
+        accessToken = await ctx.secrets.resolve(config.accessTokenRef);
+      } catch (err) {
+        configError = `Intercom plugin: failed to resolve accessTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("Intercom plugin: secret resolved, registering tools");
+      cachedClient = new IntercomClient(accessToken);
+      return cachedClient;
     }
-
-    let accessToken: string;
-    try {
-      accessToken = await ctx.secrets.resolve(config.accessTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Intercom plugin: failed to resolve accessTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("Intercom plugin: secret resolved, registering tools");
-    const client = new IntercomClient(accessToken);
 
     ctx.tools.register(
       "intercom_search_contacts",
@@ -46,6 +57,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.searchContacts(params as { email?: string; query?: string; limit?: number });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -67,6 +80,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { contact_id: string };
           const result = await client.getContact(p.contact_id);
           return { content: JSON.stringify(result, null, 2) };
@@ -93,6 +108,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createContact(params as { email: string; name?: string; phone?: string; role?: string; custom_attributes?: Record<string, unknown> });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -115,6 +132,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listConversations(params as { status?: string; assignee_id?: string; limit?: number });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -136,6 +155,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { conversation_id: string };
           const result = await client.getConversation(p.conversation_id);
           return { content: JSON.stringify(result, null, 2) };
@@ -160,6 +181,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.replyToConversation(params as { conversation_id: string; message: string; admin_id: string });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -182,6 +205,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.closeConversation(params as { conversation_id: string; admin_id: string });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -205,6 +230,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createNote(params as { conversation_id: string; note: string; admin_id: string });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -247,6 +274,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createConversation(params as { from_admin_id: string; to_contact_id: string; message: string; subject?: string });
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

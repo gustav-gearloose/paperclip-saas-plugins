@@ -13,24 +13,35 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as FreshsalesPluginConfig;
-    const { apiKeyRef, domain } = config;
+    let cachedClient: FreshsalesClient | null = null;
+    let configError: string | null = null;
 
-    if (!apiKeyRef || !domain) {
-      ctx.logger.error("Freshsales plugin: apiKeyRef and domain are required");
-      return;
+    async function getClient(): Promise<FreshsalesClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as FreshsalesPluginConfig;
+      const { apiKeyRef, domain } = config;
+
+      if (!apiKeyRef || !domain) {
+        configError = "Freshsales plugin: apiKeyRef and domain are required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiKey: string;
+      try {
+        apiKey = await ctx.secrets.resolve(apiKeyRef);
+      } catch (err) {
+        configError = `Freshsales plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new FreshsalesClient(apiKey, domain);
+      return cachedClient;
+      ctx.logger.info(`Freshsales plugin: initialized for ${domain}.myfreshworks.com, registering tools`);
     }
-
-    let apiKey: string;
-    try {
-      apiKey = await ctx.secrets.resolve(apiKeyRef);
-    } catch (err) {
-      ctx.logger.error(`Freshsales plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new FreshsalesClient(apiKey, domain);
-    ctx.logger.info(`Freshsales plugin: initialized for ${domain}.myfreshworks.com, registering tools`);
 
     ctx.tools.register(
       "freshsales_list_contacts",
@@ -47,6 +58,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listContacts(params as Parameters<typeof client.listContacts>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -68,6 +81,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number };
           const result = await client.getContact(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -94,6 +109,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createContact(params as Parameters<typeof client.createContact>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -120,6 +137,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number } & Record<string, unknown>;
           const { id, ...rest } = p;
           const result = await client.updateContact(id, rest);
@@ -143,6 +162,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listAccounts(params as Parameters<typeof client.listAccounts>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -164,6 +185,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number };
           const result = await client.getAccount(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -186,6 +209,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listDeals(params as Parameters<typeof client.listDeals>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -207,6 +232,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { id: number };
           const result = await client.getDeal(p.id);
           return { content: JSON.stringify(result, null, 2) };
@@ -232,6 +259,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createDeal(params as Parameters<typeof client.createDeal>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -255,6 +284,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.createNote(params as Parameters<typeof client.createNote>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -276,6 +307,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listTasks(params as Parameters<typeof client.listTasks>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -298,6 +331,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.search(params as Parameters<typeof client.search>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

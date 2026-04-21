@@ -12,24 +12,35 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as SlackPluginConfig;
-    const { botTokenRef } = config;
+    let cachedClient: SlackClient | null = null;
+    let configError: string | null = null;
 
-    if (!botTokenRef) {
-      ctx.logger.error("Slack plugin: botTokenRef is required");
-      return;
+    async function getClient(): Promise<SlackClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as SlackPluginConfig;
+      const { botTokenRef } = config;
+
+      if (!botTokenRef) {
+        configError = "Slack plugin: botTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let botToken: string;
+      try {
+        botToken = await ctx.secrets.resolve(botTokenRef);
+      } catch (err) {
+        configError = `Slack plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new SlackClient(botToken);
+      return cachedClient;
+      ctx.logger.info("Slack plugin: registering tools");
     }
-
-    let botToken: string;
-    try {
-      botToken = await ctx.secrets.resolve(botTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Slack plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new SlackClient(botToken);
-    ctx.logger.info("Slack plugin: registering tools");
 
     ctx.tools.register(
       "slack_send_message",
@@ -48,6 +59,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.sendMessage(
             p.channel as string,
@@ -74,6 +87,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listChannels(
             p.limit as number | undefined,
@@ -101,6 +116,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getChannelHistory(
             p.channel as string,
@@ -128,6 +145,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getThreadReplies(
             p.channel as string,
@@ -154,6 +173,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.searchMessages(
             p.query as string,
@@ -179,6 +200,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listUsers(
             p.limit as number | undefined,
@@ -202,6 +225,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getUserInfo(p.user_id as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -227,6 +252,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.uploadFile(
             p.channel as string,
@@ -256,6 +283,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.addReaction(
             p.channel as string,

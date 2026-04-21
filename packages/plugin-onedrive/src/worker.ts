@@ -15,27 +15,38 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as OneDrivePluginConfig;
-    const { tenantId, userPrincipalName, clientIdRef, clientSecretRef } = config;
+    let cachedClient: GraphClient | null = null;
+    let configError: string | null = null;
 
-    if (!tenantId || !userPrincipalName || !clientIdRef || !clientSecretRef) {
-      ctx.logger.error("OneDrive plugin: tenantId, userPrincipalName, clientIdRef, clientSecretRef are all required");
-      return;
+    async function getClient(): Promise<GraphClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as OneDrivePluginConfig;
+      const { tenantId, userPrincipalName, clientIdRef, clientSecretRef } = config;
+
+      if (!tenantId || !userPrincipalName || !clientIdRef || !clientSecretRef) {
+        configError = "OneDrive plugin: tenantId, userPrincipalName, clientIdRef, clientSecretRef are all required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let clientId: string, clientSecret: string;
+      try {
+        [clientId, clientSecret] = await Promise.all([
+          ctx.secrets.resolve(clientIdRef),
+          ctx.secrets.resolve(clientSecretRef),
+        ]);
+      } catch (err) {
+        configError = `OneDrive plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new GraphClient({ tenantId, clientId, clientSecret, defaultUser: userPrincipalName });
+      return cachedClient;
+      ctx.logger.info(`OneDrive plugin: initialized for ${userPrincipalName}, registering tools`);
     }
-
-    let clientId: string, clientSecret: string;
-    try {
-      [clientId, clientSecret] = await Promise.all([
-        ctx.secrets.resolve(clientIdRef),
-        ctx.secrets.resolve(clientSecretRef),
-      ]);
-    } catch (err) {
-      ctx.logger.error(`OneDrive plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new GraphClient({ tenantId, clientId, clientSecret, defaultUser: userPrincipalName });
-    ctx.logger.info(`OneDrive plugin: initialized for ${userPrincipalName}, registering tools`);
 
     ctx.tools.register(
       "onedrive_list_items",
@@ -54,6 +65,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const items = await client.listDriveItems(params as Parameters<typeof client.listDriveItems>[0]);
           return { content: JSON.stringify(items, null, 2) };
         } catch (err) { return errResult(err); }
@@ -77,6 +90,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const item = await client.getDriveItem(params as Parameters<typeof client.getDriveItem>[0]);
           return { content: JSON.stringify(item, null, 2) };
         } catch (err) { return errResult(err); }
@@ -99,6 +114,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { item_id?: string; item_path?: string; user?: string };
           const content = await client.getFileContent(p);
           return { content };
@@ -123,6 +140,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const results = await client.searchDrive(params as Parameters<typeof client.searchDrive>[0]);
           return { content: JSON.stringify(results, null, 2) };
         } catch (err) { return errResult(err); }
@@ -147,6 +166,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const folder = await client.createFolder(params as Parameters<typeof client.createFolder>[0]);
           return { content: JSON.stringify(folder, null, 2) };
         } catch (err) { return errResult(err); }
@@ -171,6 +192,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.uploadFile(params as Parameters<typeof client.uploadFile>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -193,6 +216,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { item_id?: string; item_path?: string; user?: string };
           const result = await client.deleteItem(p);
           return { content: JSON.stringify(result) };
@@ -218,6 +243,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.moveItem(params as Parameters<typeof client.moveItem>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -242,6 +269,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.copyItem(params as Parameters<typeof client.copyItem>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
@@ -262,6 +291,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { user?: string };
           const drives = await client.listDrives(p);
           return { content: JSON.stringify(drives, null, 2) };
@@ -287,6 +318,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getSharingLink(params as Parameters<typeof client.getSharingLink>[0]);
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

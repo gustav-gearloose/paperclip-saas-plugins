@@ -14,29 +14,40 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as SageConfig;
-    const { clientIdRef, clientSecretRef, refreshTokenRef } = config;
+    let cachedClient: SageClient | null = null;
+    let configError: string | null = null;
 
-    if (!clientIdRef || !clientSecretRef || !refreshTokenRef) {
-      ctx.logger.error("sage plugin: clientIdRef, clientSecretRef, and refreshTokenRef are required");
-      return;
+    async function getClient(): Promise<SageClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as SageConfig;
+      const { clientIdRef, clientSecretRef, refreshTokenRef } = config;
+
+      if (!clientIdRef || !clientSecretRef || !refreshTokenRef) {
+        configError = "sage plugin: clientIdRef, clientSecretRef, and refreshTokenRef are required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let clientId: string, clientSecret: string, refreshToken: string;
+      try {
+        [clientId, clientSecret, refreshToken] = await Promise.all([
+          ctx.secrets.resolve(clientIdRef),
+          ctx.secrets.resolve(clientSecretRef),
+          ctx.secrets.resolve(refreshTokenRef),
+        ]);
+      } catch (err) {
+        configError = `sage plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new SageClient(clientId, clientSecret, refreshToken);
+      return cachedClient;
+
+      ctx.logger.info("sage plugin: registering tools");
     }
-
-    let clientId: string, clientSecret: string, refreshToken: string;
-    try {
-      [clientId, clientSecret, refreshToken] = await Promise.all([
-        ctx.secrets.resolve(clientIdRef),
-        ctx.secrets.resolve(clientSecretRef),
-        ctx.secrets.resolve(refreshTokenRef),
-      ]);
-    } catch (err) {
-      ctx.logger.error(`sage plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new SageClient(clientId, clientSecret, refreshToken);
-
-    ctx.logger.info("sage plugin: registering tools");
 
     ctx.tools.register(
       "sage_list_sales_invoices",
@@ -53,6 +64,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listSalesInvoices(
             p.page as number | undefined ?? 1,
@@ -78,6 +91,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           return { content: JSON.stringify(await client.getSalesInvoice(p.id as string), null, 2) };
         } catch (err) { return errResult(err); }
@@ -115,6 +130,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.createSalesInvoice({
             contact_id: p.contact_id as string,
@@ -143,6 +160,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           return { content: JSON.stringify(await client.listContacts(p.page as number | undefined ?? 1, p.per_page as number | undefined ?? 25), null, 2) };
         } catch (err) { return errResult(err); }
@@ -164,6 +183,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           return { content: JSON.stringify(await client.getContact(p.id as string), null, 2) };
         } catch (err) { return errResult(err); }
@@ -187,6 +208,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           return { content: JSON.stringify(await client.createContact({ name: p.name as string, email: p.email as string | undefined, phone: p.phone as string | undefined }), null, 2) };
         } catch (err) { return errResult(err); }
@@ -208,6 +231,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           return { content: JSON.stringify(await client.listPurchaseInvoices(p.page as number | undefined ?? 1, p.per_page as number | undefined ?? 25), null, 2) };
         } catch (err) { return errResult(err); }
@@ -229,6 +254,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           return { content: JSON.stringify(await client.getPurchaseInvoice(p.id as string), null, 2) };
         } catch (err) { return errResult(err); }
@@ -250,6 +277,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           return { content: JSON.stringify(await client.listLedgerAccounts(p.page as number | undefined ?? 1, p.per_page as number | undefined ?? 25), null, 2) };
         } catch (err) { return errResult(err); }
@@ -271,6 +300,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           return { content: JSON.stringify(await client.listPayments(p.page as number | undefined ?? 1, p.per_page as number | undefined ?? 25), null, 2) };
         } catch (err) { return errResult(err); }
@@ -286,6 +317,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           return { content: JSON.stringify(await client.listBankAccounts(), null, 2) };
         } catch (err) { return errResult(err); }
       },
@@ -300,6 +333,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           return { content: JSON.stringify(await client.getTrialBalance(), null, 2) };
         } catch (err) { return errResult(err); }
       },

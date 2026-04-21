@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as ClickUpPluginConfig;
+    let cachedClient: ClickUpClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiTokenRef) {
-      ctx.logger.error("ClickUp plugin: apiTokenRef is required");
-      return;
+    async function getClient(): Promise<ClickUpClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as ClickUpPluginConfig;
+
+      if (!config.apiTokenRef) {
+        configError = "ClickUp plugin: apiTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiToken: string;
+      try {
+        apiToken = await ctx.secrets.resolve(config.apiTokenRef);
+      } catch (err) {
+        configError = `ClickUp plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("ClickUp plugin: secret resolved, registering tools");
+      cachedClient = new ClickUpClient(apiToken);
+      return cachedClient;
     }
-
-    let apiToken: string;
-    try {
-      apiToken = await ctx.secrets.resolve(config.apiTokenRef);
-    } catch (err) {
-      ctx.logger.error(`ClickUp plugin: failed to resolve apiTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("ClickUp plugin: secret resolved, registering tools");
-    const client = new ClickUpClient(apiToken);
 
     ctx.tools.register(
       "clickup_list_workspaces",
@@ -39,6 +50,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listWorkspaces();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

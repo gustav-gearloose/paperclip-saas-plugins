@@ -12,24 +12,35 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as LinearPluginConfig;
-    const { apiKeyRef } = config;
+    let cachedClient: LinearClient | null = null;
+    let configError: string | null = null;
 
-    if (!apiKeyRef) {
-      ctx.logger.error("Linear plugin: apiKeyRef is required");
-      return;
+    async function getClient(): Promise<LinearClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as LinearPluginConfig;
+      const { apiKeyRef } = config;
+
+      if (!apiKeyRef) {
+        configError = "Linear plugin: apiKeyRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiKey: string;
+      try {
+        apiKey = await ctx.secrets.resolve(apiKeyRef);
+      } catch (err) {
+        configError = `Linear plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new LinearClient(apiKey);
+      return cachedClient;
+      ctx.logger.info("Linear plugin: registering tools");
     }
-
-    let apiKey: string;
-    try {
-      apiKey = await ctx.secrets.resolve(apiKeyRef);
-    } catch (err) {
-      ctx.logger.error(`Linear plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new LinearClient(apiKey);
-    ctx.logger.info("Linear plugin: registering tools");
 
     ctx.tools.register(
       "linear_list_issues",
@@ -47,6 +58,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listIssues(
             p.team_id as string | undefined,
@@ -71,6 +84,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getIssue(p.issue_id as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -94,6 +109,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.searchIssues(
             p.query as string,
@@ -123,6 +140,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.createIssue(
             p.team_id as string,
@@ -152,6 +171,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.updateIssue(
             p.issue_id as string,
@@ -178,6 +199,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.addComment(
             p.issue_id as string,
@@ -197,6 +220,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const data = await client.listTeams();
           return { content: JSON.stringify(data, null, 2) };
         } catch (err) { return errResult(err); }
@@ -215,6 +240,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.listProjects(p.team_id as string | undefined);
           return { content: JSON.stringify(data, null, 2) };
@@ -231,6 +258,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const data = await client.listMembers();
           return { content: JSON.stringify(data, null, 2) };
         } catch (err) { return errResult(err); }

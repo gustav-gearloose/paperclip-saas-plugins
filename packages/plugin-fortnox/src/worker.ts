@@ -15,54 +15,65 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as FortnoxPluginConfig;
-    const { accessTokenRef, refreshTokenRef, clientIdRef, clientSecretRef } = config;
+    let cachedClient: FortnoxClient | null = null;
+    let configError: string | null = null;
 
-    if (!accessTokenRef || !refreshTokenRef || !clientIdRef || !clientSecretRef) {
-      ctx.logger.error("Fortnox plugin: all four secret refs are required");
-      return;
-    }
+    async function getClient(): Promise<FortnoxClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
 
-    let accessToken: string, refreshToken: string, clientId: string, clientSecret: string;
-    try {
-      [accessToken, refreshToken, clientId, clientSecret] = await Promise.all([
-        ctx.secrets.resolve(accessTokenRef),
-        ctx.secrets.resolve(refreshTokenRef),
-        ctx.secrets.resolve(clientIdRef),
-        ctx.secrets.resolve(clientSecretRef),
-      ]);
-    } catch (err) {
-      ctx.logger.error(`Fortnox plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
+const config = await ctx.config.get() as FortnoxPluginConfig;
+      const { accessTokenRef, refreshTokenRef, clientIdRef, clientSecretRef } = config;
 
-    // Fortnox rotates refresh tokens on every use — prefer state-cached tokens over secrets
-    const STATE_KEY = { scopeKind: "instance" as const, stateKey: "fortnox-tokens" };
-    try {
-      const cached = await ctx.state.get(STATE_KEY) as { accessToken: string; refreshToken: string } | null;
-      if (cached?.accessToken && cached?.refreshToken) {
-        accessToken = cached.accessToken;
-        refreshToken = cached.refreshToken;
-        ctx.logger.info("Fortnox plugin: loaded tokens from state cache");
+      if (!accessTokenRef || !refreshTokenRef || !clientIdRef || !clientSecretRef) {
+        configError = "Fortnox plugin: all four secret refs are required";
+        ctx.logger.warn("config missing");
+        return null;
       }
-    } catch {
-      // state not available yet — use secrets as-is
-    }
 
-    ctx.logger.info("Fortnox plugin: secrets resolved, registering tools");
-    const client = new FortnoxClient({
-      accessToken,
-      refreshToken,
-      clientId,
-      clientSecret,
-      onTokensRefreshed: async (tokens) => {
-        try {
-          await ctx.state.set(STATE_KEY, tokens);
-        } catch (err) {
-          ctx.logger.error(`Fortnox plugin: failed to persist refreshed tokens: ${err instanceof Error ? err.message : String(err)}`);
+      let accessToken: string, refreshToken: string, clientId: string, clientSecret: string;
+      try {
+        [accessToken, refreshToken, clientId, clientSecret] = await Promise.all([
+          ctx.secrets.resolve(accessTokenRef),
+          ctx.secrets.resolve(refreshTokenRef),
+          ctx.secrets.resolve(clientIdRef),
+          ctx.secrets.resolve(clientSecretRef),
+        ]);
+      } catch (err) {
+        configError = `Fortnox plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      // Fortnox rotates refresh tokens on every use — prefer state-cached tokens over secrets
+      const STATE_KEY = { scopeKind: "instance" as const, stateKey: "fortnox-tokens" };
+      try {
+        const cached = await ctx.state.get(STATE_KEY) as { accessToken: string; refreshToken: string } | null;
+        if (cached?.accessToken && cached?.refreshToken) {
+          accessToken = cached.accessToken;
+          refreshToken = cached.refreshToken;
+          ctx.logger.info("Fortnox plugin: loaded tokens from state cache");
         }
-      },
-    });
+      } catch {
+        // state not available yet — use secrets as-is
+      }
+
+      ctx.logger.info("Fortnox plugin: secrets resolved, registering tools");
+      cachedClient = new FortnoxClient({
+        accessToken,
+        refreshToken,
+        clientId,
+        clientSecret,
+        onTokensRefreshed: async (tokens) => {
+          try {
+            await ctx.state.set(STATE_KEY, tokens);
+      return cachedClient;
+          } catch (err) {
+            ctx.logger.error(`Fortnox plugin: failed to persist refreshed tokens: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        },
+      });
+    }
 
     ctx.tools.register(
       "fortnox_list_invoices",
@@ -82,6 +93,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const invoices = await client.listInvoices(params as Parameters<typeof client.listInvoices>[0]);
           return { content: JSON.stringify(invoices, null, 2) };
         } catch (err) { return errResult(err); }
@@ -103,6 +116,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { document_number: string };
           const invoice = await client.getInvoice(p.document_number);
           return { content: JSON.stringify(invoice, null, 2) };
@@ -142,6 +157,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const invoice = await client.createInvoice(params as Parameters<typeof client.createInvoice>[0]);
           return { content: JSON.stringify(invoice, null, 2) };
         } catch (err) { return errResult(err); }
@@ -163,6 +180,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const customers = await client.listCustomers(params as Parameters<typeof client.listCustomers>[0]);
           return { content: JSON.stringify(customers, null, 2) };
         } catch (err) { return errResult(err); }
@@ -184,6 +203,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { customer_number: string };
           const customer = await client.getCustomer(p.customer_number);
           return { content: JSON.stringify(customer, null, 2) };
@@ -215,6 +236,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const customer = await client.createCustomer(params as Parameters<typeof client.createCustomer>[0]);
           return { content: JSON.stringify(customer, null, 2) };
         } catch (err) { return errResult(err); }
@@ -236,6 +259,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const articles = await client.listArticles(params as Parameters<typeof client.listArticles>[0]);
           return { content: JSON.stringify(articles, null, 2) };
         } catch (err) { return errResult(err); }
@@ -259,6 +284,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const vouchers = await client.listVouchers(params as Parameters<typeof client.listVouchers>[0]);
           return { content: JSON.stringify(vouchers, null, 2) };
         } catch (err) { return errResult(err); }
@@ -281,6 +308,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as { account_number: number; financial_year?: number };
           const account = await client.getAccount(p.account_number, p.financial_year);
           return { content: JSON.stringify(account, null, 2) };
@@ -303,6 +332,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const suppliers = await client.listSuppliers(params as Parameters<typeof client.listSuppliers>[0]);
           return { content: JSON.stringify(suppliers, null, 2) };
         } catch (err) { return errResult(err); }

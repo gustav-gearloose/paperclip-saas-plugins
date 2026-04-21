@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as KlaviyoPluginConfig;
+    let cachedClient: KlaviyoClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiKeyRef) {
-      ctx.logger.error("Klaviyo plugin: apiKeyRef is required");
-      return;
+    async function getClient(): Promise<KlaviyoClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as KlaviyoPluginConfig;
+
+      if (!config.apiKeyRef) {
+        configError = "Klaviyo plugin: apiKeyRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiKey: string;
+      try {
+        apiKey = await ctx.secrets.resolve(config.apiKeyRef);
+      } catch (err) {
+        configError = `Klaviyo plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new KlaviyoClient(apiKey);
+      return cachedClient;
+      ctx.logger.info("Klaviyo plugin: client initialized, registering tools");
     }
-
-    let apiKey: string;
-    try {
-      apiKey = await ctx.secrets.resolve(config.apiKeyRef);
-    } catch (err) {
-      ctx.logger.error(`Klaviyo plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new KlaviyoClient(apiKey);
-    ctx.logger.info("Klaviyo plugin: client initialized, registering tools");
 
     ctx.tools.register(
       "klaviyo_list_profiles",

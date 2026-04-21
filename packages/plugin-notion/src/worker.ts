@@ -12,24 +12,35 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as NotionPluginConfig;
-    const { integrationTokenRef } = config;
+    let cachedClient: NotionClient | null = null;
+    let configError: string | null = null;
 
-    if (!integrationTokenRef) {
-      ctx.logger.error("Notion plugin: integrationTokenRef is required");
-      return;
+    async function getClient(): Promise<NotionClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as NotionPluginConfig;
+      const { integrationTokenRef } = config;
+
+      if (!integrationTokenRef) {
+        configError = "Notion plugin: integrationTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let integrationToken: string;
+      try {
+        integrationToken = await ctx.secrets.resolve(integrationTokenRef);
+      } catch (err) {
+        configError = `Notion plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new NotionClient(integrationToken);
+      return cachedClient;
+      ctx.logger.info("Notion plugin: registering tools");
     }
-
-    let integrationToken: string;
-    try {
-      integrationToken = await ctx.secrets.resolve(integrationTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Notion plugin: failed to resolve secret: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new NotionClient(integrationToken);
-    ctx.logger.info("Notion plugin: registering tools");
 
     ctx.tools.register(
       "notion_search",
@@ -48,6 +59,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.search(
             p.query as string,
@@ -72,6 +85,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getPage(p.page_id as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -95,6 +110,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getPageBlocks(
             p.page_id as string,
@@ -122,6 +139,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.createPage(
             p.parent_id as string,
@@ -149,6 +168,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.appendBlocks(
             p.page_id as string,
@@ -177,6 +198,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.queryDatabase(
             p.database_id as string,
@@ -202,6 +225,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.getDatabase(p.database_id as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -225,6 +250,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.createDatabasePage(
             p.database_id as string,
@@ -251,6 +278,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const p = params as Record<string, unknown>;
           const data = await client.updatePageTitle(p.page_id as string, p.title as string);
           return { content: JSON.stringify(data, null, 2) };

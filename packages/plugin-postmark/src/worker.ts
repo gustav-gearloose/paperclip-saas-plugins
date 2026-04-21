@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as PostmarkPluginConfig;
+    let cachedClient: PostmarkClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.serverTokenRef) {
-      ctx.logger.error("Postmark plugin: serverTokenRef is required");
-      return;
+    async function getClient(): Promise<PostmarkClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as PostmarkPluginConfig;
+
+      if (!config.serverTokenRef) {
+        configError = "Postmark plugin: serverTokenRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let serverToken: string;
+      try {
+        serverToken = await ctx.secrets.resolve(config.serverTokenRef);
+      } catch (err) {
+        configError = `Postmark plugin: failed to resolve serverTokenRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      cachedClient = new PostmarkClient(serverToken);
+      return cachedClient;
+      ctx.logger.info("Postmark plugin: client initialized, registering tools");
     }
-
-    let serverToken: string;
-    try {
-      serverToken = await ctx.secrets.resolve(config.serverTokenRef);
-    } catch (err) {
-      ctx.logger.error(`Postmark plugin: failed to resolve serverTokenRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new PostmarkClient(serverToken);
-    ctx.logger.info("Postmark plugin: client initialized, registering tools");
 
     ctx.tools.register(
       "postmark_send_email",
@@ -396,6 +407,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.getServer();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }

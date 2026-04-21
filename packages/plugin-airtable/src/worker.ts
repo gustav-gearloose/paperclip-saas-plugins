@@ -12,23 +12,34 @@ function errResult(err: unknown): ToolResult {
 
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as AirtablePluginConfig;
+    let cachedClient: AirtableClient | null = null;
+    let configError: string | null = null;
 
-    if (!config.apiKeyRef) {
-      ctx.logger.error("Airtable plugin: apiKeyRef is required");
-      return;
+    async function getClient(): Promise<AirtableClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+const config = await ctx.config.get() as AirtablePluginConfig;
+
+      if (!config.apiKeyRef) {
+        configError = "Airtable plugin: apiKeyRef is required";
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      let apiKey: string;
+      try {
+        apiKey = await ctx.secrets.resolve(config.apiKeyRef);
+      } catch (err) {
+        configError = `Airtable plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.warn("config missing");
+        return null;
+      }
+
+      ctx.logger.info("Airtable plugin: secret resolved, registering tools");
+      cachedClient = new AirtableClient(apiKey);
+      return cachedClient;
     }
-
-    let apiKey: string;
-    try {
-      apiKey = await ctx.secrets.resolve(config.apiKeyRef);
-    } catch (err) {
-      ctx.logger.error(`Airtable plugin: failed to resolve apiKeyRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("Airtable plugin: secret resolved, registering tools");
-    const client = new AirtableClient(apiKey);
 
     ctx.tools.register(
       "airtable_list_bases",
@@ -39,6 +50,8 @@ const plugin = definePlugin({
       },
       async (): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? "Plugin not configured." };
           const result = await client.listBases();
           return { content: JSON.stringify(result, null, 2) };
         } catch (err) { return errResult(err); }
