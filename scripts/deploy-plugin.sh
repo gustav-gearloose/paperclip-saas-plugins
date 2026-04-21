@@ -169,7 +169,11 @@ cust = os.environ.get('PC_CUSTOMER_CONFIG', '')
 if cust and os.path.isfile(cust):
     overlay = json.load(open(cust))
     cfg.get('configJson', {}).update(overlay.get('configJson', {}))
-    cfg.get('secretRefs', {}).update(overlay.get('secretRefs', {}))
+    # Customer secretRefs fully replaces base when present (even if empty)
+    if 'secretRefs' in overlay:
+        cfg['secretRefs'] = overlay['secretRefs']
+    else:
+        cfg.get('secretRefs', {}).update(overlay.get('secretRefs', {}))
 refs = cfg.get('secretRefs', {})
 for key, s in refs.items():
     uuid = s.get('uuid', '')

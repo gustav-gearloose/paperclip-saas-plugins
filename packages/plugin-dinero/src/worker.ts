@@ -13,30 +13,42 @@ function errResult(err: unknown): ToolResult {
   return { error: err instanceof Error ? err.message : String(err) };
 }
 
+const NOT_CONFIGURED = { error: "Dinero plugin not configured — set dineroOrgId, dineroClientIdRef, dineroClientSecretRef, dineroApiKeyRef in plugin settings." };
+
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as DineroPluginConfig;
-    const { dineroOrgId: orgId, dineroClientIdRef, dineroClientSecretRef, dineroApiKeyRef } = config;
+    let cachedClient: DineroClient | null = null;
+    let configError: string | null = null;
 
-    if (!orgId || !dineroClientIdRef || !dineroClientSecretRef || !dineroApiKeyRef) {
-      ctx.logger.error("Dinero plugin: dineroOrgId, dineroClientIdRef, dineroClientSecretRef, dineroApiKeyRef are all required");
-      return;
+    async function getClient(): Promise<DineroClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+      const config = await ctx.config.get() as DineroPluginConfig;
+      const { dineroOrgId: orgId, dineroClientIdRef, dineroClientSecretRef, dineroApiKeyRef } = config;
+
+      if (!orgId || !dineroClientIdRef || !dineroClientSecretRef || !dineroApiKeyRef) {
+        configError = "Dinero plugin not configured — set dineroOrgId, dineroClientIdRef, dineroClientSecretRef, dineroApiKeyRef in plugin settings.";
+        ctx.logger.warn("Dinero plugin: missing required config fields");
+        return null;
+      }
+
+      let clientId: string, clientSecret: string, apiKey: string;
+      try {
+        [clientId, clientSecret, apiKey] = await Promise.all([
+          ctx.secrets.resolve(dineroClientIdRef),
+          ctx.secrets.resolve(dineroClientSecretRef),
+          ctx.secrets.resolve(dineroApiKeyRef),
+        ]);
+      } catch (err) {
+        configError = `Dinero plugin: failed to resolve secrets — ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.error(configError);
+        return null;
+      }
+
+      cachedClient = new DineroClient({ clientId, clientSecret, apiKey, orgId });
+      return cachedClient;
     }
-
-    let clientId: string, clientSecret: string, apiKey: string;
-    try {
-      [clientId, clientSecret, apiKey] = await Promise.all([
-        ctx.secrets.resolve(dineroClientIdRef),
-        ctx.secrets.resolve(dineroClientSecretRef),
-        ctx.secrets.resolve(dineroApiKeyRef),
-      ]);
-    } catch (err) {
-      ctx.logger.error(`Dinero plugin: failed to resolve secrets: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    ctx.logger.info("Dinero plugin: secrets resolved, registering tools");
-    const client = new DineroClient({ clientId, clientSecret, apiKey, orgId });
 
     ctx.tools.register(
       "dinero_list_invoices",
@@ -53,6 +65,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? NOT_CONFIGURED.error };
           const p = params as Record<string, unknown>;
           const data = await client.listInvoices({
             status: p.status as string | undefined,
@@ -78,6 +92,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? NOT_CONFIGURED.error };
           const p = params as Record<string, unknown>;
           const data = await client.getInvoice(p.guid as string);
           return { content: JSON.stringify(data, null, 2) };
@@ -100,6 +116,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? NOT_CONFIGURED.error };
           const p = params as Record<string, unknown>;
           const data = await client.listContacts({
             type: p.type as string | undefined,
@@ -124,6 +142,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? NOT_CONFIGURED.error };
           const p = params as Record<string, unknown>;
           const [accounts, keyFigures] = await Promise.allSettled([
             client.listAccounts(p.fiscal_year as number | undefined),
@@ -153,6 +173,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? NOT_CONFIGURED.error };
           const p = params as Record<string, unknown>;
           const data = await client.listEntries({
             fromDate: p.from_date as string | undefined,
@@ -181,6 +203,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? NOT_CONFIGURED.error };
           const p = params as Record<string, unknown>;
           const data = await client.listEntryChanges({
             changesFrom: p.changes_from as string,
@@ -207,6 +231,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? NOT_CONFIGURED.error };
           const p = params as Record<string, unknown>;
           const data = await client.getVatReport({
             year: p.year as number | undefined,
@@ -231,6 +257,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? NOT_CONFIGURED.error };
           const p = params as Record<string, unknown>;
           const data = await client.listProducts({ query: p.query as string | undefined });
           return { content: JSON.stringify(data, null, 2) };
@@ -252,6 +280,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? NOT_CONFIGURED.error };
           const p = params as Record<string, unknown>;
           const data = await client.getFinancialSummary(p.fiscal_year as number | undefined);
           return { content: JSON.stringify(data, null, 2) };
@@ -293,6 +323,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? NOT_CONFIGURED.error };
           const p = params as Record<string, unknown>;
           const lines = (p.lines as Array<Record<string, unknown>>).map((l) => ({
             productGuid: l.product_guid as string | undefined,
@@ -339,6 +371,8 @@ const plugin = definePlugin({
       },
       async (params): Promise<ToolResult> => {
         try {
+          const client = await getClient();
+          if (!client) return { error: configError ?? NOT_CONFIGURED.error };
           const p = params as Record<string, unknown>;
           const data = await client.createContact({
             name: p.name as string,

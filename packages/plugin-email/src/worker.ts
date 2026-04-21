@@ -16,35 +16,48 @@ function errResult(err: unknown): ToolResult {
   return { error: err instanceof Error ? err.message : String(err) };
 }
 
+const NOT_CONFIGURED = { error: "Email plugin not configured — set emailUser, emailPasswordRef, imapHost, smtpHost in plugin settings." };
+
 const plugin = definePlugin({
   async setup(ctx) {
-    const config = await ctx.config.get() as EmailPluginConfig;
-    const { emailUser, emailPasswordRef, imapHost, imapPort, smtpHost, smtpPort, displayName } = config;
+    // Resolve client lazily so tools are always registered even without config.
+    // Each handler calls getClient() and gets a clear error if config is missing.
+    let cachedClient: EmailClient | null = null;
+    let configError: string | null = null;
 
-    if (!emailUser || !emailPasswordRef || !imapHost || !smtpHost) {
-      ctx.logger.error("Email plugin: emailUser, emailPasswordRef, imapHost, smtpHost are required");
-      return;
+    async function getClient(): Promise<EmailClient | null> {
+      if (cachedClient) return cachedClient;
+      if (configError) return null;
+
+      const config = await ctx.config.get() as EmailPluginConfig;
+      const { emailUser, emailPasswordRef, imapHost, imapPort, smtpHost, smtpPort, displayName } = config;
+
+      if (!emailUser || !emailPasswordRef || !imapHost || !smtpHost) {
+        configError = "Email plugin not configured — set emailUser, emailPasswordRef, imapHost, smtpHost in plugin settings.";
+        ctx.logger.warn("Email plugin: missing required config fields");
+        return null;
+      }
+
+      let password: string;
+      try {
+        password = await ctx.secrets.resolve(emailPasswordRef);
+      } catch (err) {
+        configError = `Email plugin: failed to resolve emailPasswordRef — ${err instanceof Error ? err.message : String(err)}`;
+        ctx.logger.error(configError);
+        return null;
+      }
+
+      cachedClient = new EmailClient({
+        emailUser,
+        password,
+        imapHost,
+        imapPort: Number(imapPort ?? 993),
+        smtpHost,
+        smtpPort: Number(smtpPort ?? 465),
+        displayName,
+      });
+      return cachedClient;
     }
-
-    let password: string;
-    try {
-      password = await ctx.secrets.resolve(emailPasswordRef);
-    } catch (err) {
-      ctx.logger.error(`Email plugin: failed to resolve emailPasswordRef: ${err instanceof Error ? err.message : String(err)}`);
-      return;
-    }
-
-    const client = new EmailClient({
-      emailUser,
-      password,
-      imapHost,
-      imapPort: Number(imapPort ?? 993),
-      smtpHost,
-      smtpPort: Number(smtpPort ?? 465),
-      displayName,
-    });
-
-    ctx.logger.info("Email plugin: connected, registering tools");
 
     ctx.tools.register(
       "email_list_folders",
@@ -54,9 +67,10 @@ const plugin = definePlugin({
         parametersSchema: { type: "object", properties: {} },
       },
       async (): Promise<ToolResult> => {
+        const client = await getClient();
+        if (!client) return { error: configError ?? NOT_CONFIGURED.error };
         try {
-          const folders = await client.listFolders();
-          return { content: JSON.stringify(folders, null, 2) };
+          return { content: JSON.stringify(await client.listFolders(), null, 2) };
         } catch (err) { return errResult(err); }
       }
     );
@@ -65,7 +79,7 @@ const plugin = definePlugin({
       "email_search",
       {
         displayName: "Search Emails",
-        description: "Search emails in a folder. Returns subject, from, date, and read status. Use get_email to fetch the full body.",
+        description: "Search emails in a folder. Returns subject, from, date, and read status. Use email_get to fetch the full body.",
         parametersSchema: {
           type: "object",
           properties: {
@@ -79,6 +93,8 @@ const plugin = definePlugin({
         },
       },
       async (params): Promise<ToolResult> => {
+        const client = await getClient();
+        if (!client) return { error: configError ?? NOT_CONFIGURED.error };
         try {
           const p = params as Record<string, unknown>;
           const messages = await client.searchEmails({
@@ -109,6 +125,8 @@ const plugin = definePlugin({
         },
       },
       async (params): Promise<ToolResult> => {
+        const client = await getClient();
+        if (!client) return { error: configError ?? NOT_CONFIGURED.error };
         try {
           const p = params as Record<string, unknown>;
           const msg = await client.getEmail(p.uid as number, p.folder as string | undefined);
@@ -135,6 +153,8 @@ const plugin = definePlugin({
         },
       },
       async (params): Promise<ToolResult> => {
+        const client = await getClient();
+        if (!client) return { error: configError ?? NOT_CONFIGURED.error };
         try {
           const p = params as Record<string, unknown>;
           const messageId = await client.sendEmail({
@@ -163,6 +183,8 @@ const plugin = definePlugin({
         },
       },
       async (params): Promise<ToolResult> => {
+        const client = await getClient();
+        if (!client) return { error: configError ?? NOT_CONFIGURED.error };
         try {
           const p = params as Record<string, unknown>;
           await client.markSeen(p.uid as number, p.folder as string | undefined);
@@ -187,6 +209,8 @@ const plugin = definePlugin({
         },
       },
       async (params): Promise<ToolResult> => {
+        const client = await getClient();
+        if (!client) return { error: configError ?? NOT_CONFIGURED.error };
         try {
           const p = params as Record<string, unknown>;
           await client.moveEmail(p.uid as number, p.from_folder as string, p.to_folder as string);
@@ -199,7 +223,7 @@ const plugin = definePlugin({
       "email_delete",
       {
         displayName: "Delete Email",
-        description: "Delete (trash) an email by marking it \\Deleted and closing the mailbox.",
+        description: "Delete an email by marking it for deletion and closing the mailbox.",
         parametersSchema: {
           type: "object",
           required: ["uid"],
@@ -210,6 +234,8 @@ const plugin = definePlugin({
         },
       },
       async (params): Promise<ToolResult> => {
+        const client = await getClient();
+        if (!client) return { error: configError ?? NOT_CONFIGURED.error };
         try {
           const p = params as Record<string, unknown>;
           await client.deleteEmail(p.uid as number, p.folder as string | undefined);

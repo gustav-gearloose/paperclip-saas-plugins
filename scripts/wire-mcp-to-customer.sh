@@ -80,7 +80,7 @@ ssh "$SSH_HOST" "echo $_AUTH_B64 | base64 -d | curl -s -X POST '$PC_HOST/api/aut
 ALL_AGENT_IDS=()
 if [[ -z "$AGENT_ID" ]]; then
   info "No agent-id given — patching ALL agents..."
-  mapfile -t ALL_AGENT_IDS < <(ssh "$SSH_HOST" "curl -s '$PC_HOST/api/companies/$PC_COMPANY_ID/agents' \
+  _AGENT_LIST=$(ssh "$SSH_HOST" "curl -s '$PC_HOST/api/companies/$PC_COMPANY_ID/agents' \
     -b /tmp/pc_wire_cookies.txt \
     -H 'Origin: $PC_ORIGIN'" \
     | python3 -c "
@@ -92,7 +92,8 @@ else:
     for a in agents:
         print(a['id'])
 ")
-  [[ "${ALL_AGENT_IDS[0]:-}" == "NO_AGENTS" ]] && die "No agents found. Create one in the Paperclip UI first."
+  [[ "$_AGENT_LIST" == "NO_AGENTS" ]] && die "No agents found. Create one in the Paperclip UI first."
+  while IFS= read -r _aid; do ALL_AGENT_IDS+=("$_aid"); done <<< "$_AGENT_LIST"
   info "Found ${#ALL_AGENT_IDS[@]} agents to patch"
 else
   ALL_AGENT_IDS=("$AGENT_ID")

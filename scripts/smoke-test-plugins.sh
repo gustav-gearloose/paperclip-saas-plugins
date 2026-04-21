@@ -116,7 +116,8 @@ PLUGINS=$(pc "'$PC_HOST/api/plugins'" | python3 -c "
 import sys, json
 plugins = json.load(sys.stdin)
 for p in plugins:
-    print(p['id'] + '\t' + p.get('displayName', p.get('name', '?')) + '\t' + p.get('status','?') + '\t' + (p.get('pluginKey') or p.get('id','')))
+    name = p.get('displayName') or p.get('name') or (p.get('manifestJson') or {}).get('displayName') or p.get('pluginKey','?')
+    print(p['id'] + '\t' + name + '\t' + p.get('status','?') + '\t' + (p.get('pluginKey') or p.get('id','')))
 " 2>/dev/null)
 
 if [[ -z "$PLUGINS" ]]; then
@@ -225,17 +226,18 @@ while IFS=$'\t' read -r plugin_id display_name status plugin_key; do
     tname="${rest%%|*}"
     tparams="${rest#*|}"
     if echo "$plugin_key" | grep -qi "$pattern"; then
-      preferred="${plugin_key}:${tname}"
-      if echo "$AVAILABLE_TOOLS" | grep -q "^${preferred}$"; then
-        TOOL_NAME="$preferred"
+      # Tools are registered as <pluginId>:<toolName> (UUID prefix), not plugin_key prefix
+      matched=$(echo "$AVAILABLE_TOOLS" | grep ":${tname}$" | grep -i "${plugin_id}" | head -1 || true)
+      if [[ -n "$matched" ]]; then
+        TOOL_NAME="$matched"
         TOOL_PARAMS="$tparams"
         break
       fi
     fi
   done
-  # Fallback: use first available tool for this plugin (with no params)
+  # Fallback: use first available tool for this plugin by UUID prefix
   if [[ -z "$TOOL_NAME" ]]; then
-    TOOL_NAME=$(echo "$AVAILABLE_TOOLS" | grep "^${plugin_key}:" | head -1 || true)
+    TOOL_NAME=$(echo "$AVAILABLE_TOOLS" | grep "^${plugin_id}:" | head -1 || true)
   fi
 
   if [[ -z "$TOOL_NAME" ]]; then

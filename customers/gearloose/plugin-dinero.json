@@ -4,13 +4,13 @@
   },
   "secretRefs": {
     "dineroClientIdRef": {
-      "uuid": "8a8c1cba-d64c-4dac-9eb3-daa252685ed9"
+      "uuid": "3ecd9fae-a29b-4d7e-8084-632594a268a4"
     },
     "dineroClientSecretRef": {
-      "uuid": "35633f44-d581-4d81-920d-a4bc67ff8ac1"
+      "uuid": "57d69d78-9dea-4024-88e9-35bcc03bec31"
     },
     "dineroApiKeyRef": {
-      "uuid": "b21418a2-55f7-4e10-b7c3-55f41d00bccb"
+      "uuid": "a1527608-8b39-480d-a024-566c0262dc99"
     }
   }
 }
