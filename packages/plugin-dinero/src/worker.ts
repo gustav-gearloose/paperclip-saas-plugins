@@ -149,9 +149,14 @@ const plugin = definePlugin({
             client.listAccounts(p.fiscal_year as number | undefined),
             client.getKeyFigures(p.fiscal_year as number | undefined),
           ]);
+          const errors = [
+            accounts.status === "rejected" ? { op: "accounts", message: accounts.reason instanceof Error ? accounts.reason.message : String(accounts.reason) } : null,
+            keyFigures.status === "rejected" ? { op: "keyFigures", message: keyFigures.reason instanceof Error ? keyFigures.reason.message : String(keyFigures.reason) } : null,
+          ].filter((e): e is { op: string; message: string } => e !== null);
           return { content: JSON.stringify({
             accounts: accounts.status === "fulfilled" ? accounts.value : null,
             keyFigures: keyFigures.status === "fulfilled" ? keyFigures.value : null,
+            ...(errors.length > 0 ? { errors } : {}),
           }, null, 2) };
         } catch (err) { return errResult(err); }
       }

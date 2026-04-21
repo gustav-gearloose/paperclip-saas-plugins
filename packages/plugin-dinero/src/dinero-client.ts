@@ -69,10 +69,23 @@ export class DineroClient {
     pageSize?: number;
   } = {}): Promise<unknown> {
     const qs = new URLSearchParams();
-    if (params.status && params.status !== "all") qs.set("statusFilter", params.status);
+    if (params.status && params.status !== "all") {
+      // Dinero API enum: Draft, Booked, Paid, OverPaid, Overdue.
+      // "sent" is our friendly alias for Booked (issued, not yet paid).
+      const map: Record<string, string> = {
+        draft: "Draft",
+        sent: "Booked",
+        booked: "Booked",
+        paid: "Paid",
+        overpaid: "OverPaid",
+        overdue: "Overdue",
+      };
+      const mapped = map[params.status.toLowerCase()] ?? params.status;
+      qs.set("statusFilter", mapped);
+    }
     if (params.fiscalYear) {
-      qs.set("dateFrom", `${params.fiscalYear}-01-01`);
-      qs.set("dateTo", `${params.fiscalYear}-12-31`);
+      qs.set("startDate", `${params.fiscalYear}-01-01`);
+      qs.set("endDate", `${params.fiscalYear}-12-31`);
     }
     qs.set("fields", "Guid,Number,ContactName,TotalExclVat,TotalInclVat,Status,Date,PaymentDate,Currency");
     qs.set("pageSize", String(params.pageSize ?? 100));
@@ -109,11 +122,10 @@ export class DineroClient {
   }
 
   async getKeyFigures(fiscalYear?: number): Promise<unknown> {
-    const qs = new URLSearchParams();
-    if (fiscalYear) {
-      qs.set("fiscalYearStart", `${fiscalYear}-01-01`);
-    }
-    return this.request(`/keyfigures?${qs}`);
+    // Dinero has no /keyfigures endpoint. The closest equivalent is the saldobalance
+    // report, which includes both result (P&L) and balance for a whole accounting year.
+    const year = fiscalYear ?? new Date().getFullYear();
+    return this.request(`/${year}/reports/saldo`);
   }
 
   // ── Ledger Entries ────────────────────────────────────────────────────────
@@ -251,10 +263,16 @@ export class DineroClient {
       this.listInvoices({ fiscalYear: year, status: "sent", pageSize: 1000 })
     ]);
 
+    const errors = [
+      keyFigures.status === "rejected" ? { op: "keyFigures", message: keyFigures.reason instanceof Error ? keyFigures.reason.message : String(keyFigures.reason) } : null,
+      invoices.status === "rejected" ? { op: "outstandingInvoices", message: invoices.reason instanceof Error ? invoices.reason.message : String(invoices.reason) } : null,
+    ].filter((e): e is { op: string; message: string } => e !== null);
+
     return {
       fiscalYear: year,
       keyFigures: keyFigures.status === "fulfilled" ? keyFigures.value : null,
-      outstandingInvoices: invoices.status === "fulfilled" ? invoices.value : null
+      outstandingInvoices: invoices.status === "fulfilled" ? invoices.value : null,
+      ...(errors.length > 0 ? { errors } : {}),
     };
   }
 }
