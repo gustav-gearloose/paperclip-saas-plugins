@@ -312,14 +312,15 @@ const plugin = definePlugin({
               description: "Invoice product lines.",
               items: {
                 type: "object",
-                required: ["description", "quantity", "base_amount_excl_vat"],
+                required: ["description", "quantity", "account_number", "base_amount_excl_vat"],
                 properties: {
                   product_guid: { type: "string" },
                   description: { type: "string" },
                   quantity: { type: "number" },
                   unit: { type: "string", description: "Unit label, e.g. 'parts', 'hours'." },
-                  account_number: { type: "integer" },
+                  account_number: { type: "integer", description: "Required. Dinero ledger account number (e.g. 1000 for sales)." },
                   base_amount_excl_vat: { type: "number", description: "Unit price excl. VAT." },
+                  discount: { type: "number", description: "Discount 0-100 (percent). Default 0." },
                 },
               },
             },
@@ -336,8 +337,9 @@ const plugin = definePlugin({
             description: l.description as string,
             quantity: l.quantity as number,
             unit: l.unit as string | undefined,
-            accountNumber: l.account_number as number | undefined,
+            accountNumber: l.account_number as number,
             baseAmountExclVat: l.base_amount_excl_vat as number,
+            discount: l.discount as number | undefined,
           }));
           const data = await client.createInvoice({
             contactGuid: p.contact_guid as string,
@@ -355,7 +357,7 @@ const plugin = definePlugin({
       "dinero_create_contact",
       {
         displayName: "Create Contact",
-        description: "Create a new contact (customer or supplier) in Dinero.",
+        description: "Create a new contact in Dinero. Debitor/creditor (customer/supplier) state is inferred by Dinero based on how the contact is used later (invoices make them a debitor, purchases a creditor) — no flag is set at creation time.",
         parametersSchema: {
           type: "object",
           required: ["name"],
@@ -363,14 +365,12 @@ const plugin = definePlugin({
             name: { type: "string", description: "Contact name." },
             email: { type: "string" },
             phone: { type: "string" },
-            address: { type: "string" },
+            address: { type: "string", description: "Street address." },
             city: { type: "string" },
             zip_code: { type: "string" },
-            country_key: { type: "string", description: "ISO country code, e.g. DK." },
-            vat_number: { type: "string", description: "VAT / CVR number." },
+            country_key: { type: "string", description: "ISO country code, e.g. DK. Default: DK." },
+            vat_number: { type: "string", description: "VAT / CVR number. For DK companies, Dinero will attempt a CVR lookup." },
             is_person: { type: "boolean", description: "True for individual contacts (default false = company)." },
-            is_customer: { type: "boolean", description: "Mark as customer (default true)." },
-            is_supplier: { type: "boolean", description: "Mark as supplier (default false)." },
           },
         },
       },
@@ -389,8 +389,6 @@ const plugin = definePlugin({
             countryKey: p.country_key as string | undefined,
             vatNumber: p.vat_number as string | undefined,
             isPerson: p.is_person as boolean | undefined,
-            isCustomer: p.is_customer as boolean | undefined,
-            isSupplier: p.is_supplier as boolean | undefined,
           });
           return { content: JSON.stringify(data, null, 2) };
         } catch (err) { return errResult(err); }

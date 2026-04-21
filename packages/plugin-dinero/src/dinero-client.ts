@@ -210,24 +210,31 @@ export class DineroClient {
       description: string;
       quantity: number;
       unit?: string;
-      accountNumber?: number;
+      accountNumber: number;
       baseAmountExclVat: number;
+      discount?: number;
     }>;
   }): Promise<unknown> {
+    // InvoiceCreateModel requires AccountNumber, BaseAmountValue, Discount and
+    // Quantity on every ProductLine (schema-enforced, non-nullable). The field
+    // is BaseAmountValue, not BaseAmountExclVat. PaymentConditionType is the
+    // correct enum name (values: Netto, NettoCash, CurrentMonthOut, Paid).
     const body = {
       ContactGuid: invoice.contactGuid,
       Date: invoice.date,
       Currency: invoice.currency ?? "DKK",
       ...(invoice.paymentConditionNumberOfDays !== undefined
-        ? { PaymentConditions: "Netto", PaymentConditionNumberOfDays: invoice.paymentConditionNumberOfDays }
+        ? { PaymentConditionType: "Netto", PaymentConditionNumberOfDays: invoice.paymentConditionNumberOfDays }
         : {}),
       ProductLines: invoice.lines.map((l) => ({
+        LineType: "Product",
         ...(l.productGuid ? { ProductGuid: l.productGuid } : {}),
         Description: l.description,
         Quantity: l.quantity,
         Unit: l.unit ?? "parts",
-        ...(l.accountNumber ? { AccountNumber: l.accountNumber } : {}),
-        BaseAmountExclVat: l.baseAmountExclVat,
+        AccountNumber: l.accountNumber,
+        BaseAmountValue: l.baseAmountExclVat,
+        Discount: l.discount ?? 0,
       })),
     };
     return this.request("/invoices", {
@@ -246,21 +253,29 @@ export class DineroClient {
     countryKey?: string;
     vatNumber?: string;
     isPerson?: boolean;
-    isCustomer?: boolean;
-    isSupplier?: boolean;
   }): Promise<unknown> {
+    // ContactCreateModel requires: Name, CountryKey, IsPerson, IsMember, UseCvr.
+    // The field for the postal address is Street (not Address). Dinero does not
+    // accept IsCustomer/IsSupplier on create — debitor/creditor state is
+    // inferred from usage (invoices → debitor, purchases → creditor). UseCvr
+    // controls whether Dinero looks up the company via CVR when VatNumber is
+    // supplied; we default to true for DK non-person contacts when a VatNumber
+    // is given, false otherwise.
+    const isPerson = contact.isPerson ?? false;
+    const countryKey = contact.countryKey ?? "DK";
+    const useCvr = !isPerson && countryKey === "DK" && !!contact.vatNumber;
     const body: Record<string, unknown> = {
       Name: contact.name,
-      IsPerson: contact.isPerson ?? false,
-      IsCustomer: contact.isCustomer ?? true,
-      IsSupplier: contact.isSupplier ?? false,
+      CountryKey: countryKey,
+      IsPerson: isPerson,
+      IsMember: false,
+      UseCvr: useCvr,
     };
     if (contact.email) body["Email"] = contact.email;
     if (contact.phone) body["Phone"] = contact.phone;
-    if (contact.address) body["Address"] = contact.address;
+    if (contact.address) body["Street"] = contact.address;
     if (contact.city) body["City"] = contact.city;
     if (contact.zipCode) body["ZipCode"] = contact.zipCode;
-    if (contact.countryKey) body["CountryKey"] = contact.countryKey;
     if (contact.vatNumber) body["VatNumber"] = contact.vatNumber;
     return this.request("/contacts", { method: "POST", body: JSON.stringify(body) });
   }
